@@ -1,9 +1,30 @@
-# Application nourriture
+# Repas & stock
 
-Application mobile à concevoir pour planifier les activités, suivre l’alimentation et les apports, gérer les stocks, les recettes et les listes de courses.
+Première version mobile installable dans un navigateur, indépendante de MyFitnessPal. Elle conserve les données uniquement sur l’appareil.
 
-## État
+## Fonctions livrées
 
-Le projet est au stade du cadrage. Le suivi détaillé est conservé dans le dépôt de pilotage Codex-work, dans `IMPORTANT/Sport Repas/SUIVI_PROJET.md`.
+- journal alimentaire quotidien avec calories, protéines, glucides et lipides ;
+- objectifs facultatifs et configurables ;
+- recettes à plusieurs ingrédients, enregistrables dans le journal ;
+- déduction des ingrédients présents dans le stock ;
+- seuils de stock et liste de courses proposée ;
+- articles de courses ajoutés manuellement.
 
-Les anciens classeurs Excel sont conservés séparément comme références et ne sont pas copiés automatiquement dans ce dépôt.
+Les aliments et quantités initiales sont de simples exemples. L’application ne fournit aucun objectif nutritionnel personnel ni conseil médical.
+
+## Lancer localement
+
+```powershell
+npm.cmd run start
+```
+
+Puis ouvrir `http://localhost:4173` sur un navigateur. Sur téléphone, elle pourra être installée comme application web ; la génération d’un APK Android constitue une étape ultérieure.
+
+## Vérifier
+
+```powershell
+npm.cmd run verify
+```
+
+Le suivi détaillé est conservé dans le dépôt de pilotage Codex-work, dans `IMPORTANT/Sport Repas/SUIVI_PROJET.md`. Les anciens classeurs Excel restent séparés comme références.

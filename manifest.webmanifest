@@ -1,0 +1,10 @@
+{
+  "name": "Repas & stock",
+  "short_name": "Repas",
+  "description": "Journal alimentaire, recettes, stock et liste de courses.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7faf7",
+  "theme_color": "#18745b",
+  "icons": [{ "src": "./assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

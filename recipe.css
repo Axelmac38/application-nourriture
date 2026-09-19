@@ -1,0 +1,4 @@
+.recipe-name{display:grid;gap:5px;color:#597169;font-size:.75rem;margin-bottom:10px}
+.ingredient-line{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin:8px 0}
+.ingredient-line label{display:grid;gap:5px;color:#597169;font-size:.75rem}
+.add-line{background:#eaf4ed;color:#18745b;margin:3px 6px 0 0}
