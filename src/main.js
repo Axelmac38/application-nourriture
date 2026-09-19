@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-29';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-30';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -200,7 +200,7 @@ function shopping() {
   const categories = ['Fruits et légumes', 'Féculents et céréales', 'Produits laitiers', 'Viandes et charcuterie', 'Sauces et condiments', 'Boissons et snacking', 'Non alimentaire'];
   return `<section class="hero"><p>LISTE DE COURSES</p><h1>À acheter quand tu veux</h1><span>Propositions fondées sur les seuils de stock.</span></section>
   <section class="panel"><h2>Ajouter un article</h2><form id="shopping-form" class="inline-form"><input name="name" required placeholder="Ex. œufs" /><button>Ajouter</button></form></section>
-  <section class="panel"><h2>Mon panier</h2>${items.length ? `<div class="shopping-list">${items.map((item) => `<label><input type="checkbox" data-check-shopping="${item.id}" ${item.done ? 'checked' : ''}/><span>${item.name}${item.suggested ? ` · au moins ${item.suggested} g` : ''}</span>${item.id.startsWith('stock-') ? '<em>stock faible</em>' : '<button class="icon" data-remove-shopping="' + item.id + '">×</button>'}</label>`).join('')}</div>` : ''}<h3 class="subheading">Produits suivis chez Lidl</h3>${categories.map((category) => { const names = products.filter((name) => priceCategory(name) === category); return names.length ? `<section class="product-category"><h3>${category}</h3>${names.map((name) => priceProductCard(name, history, selected)).join('')}</section>` : ''; }).join('') || '<p class="empty">Aucun produit suivi.</p>'}<div class="cart-total"><b>Total estimé</b><strong>${total.toFixed(2)} €</strong></div></section>`;
+  <section class="panel"><h2>Mon panier</h2>${items.length ? `<div class="shopping-list">${items.map((item) => `<label><input type="checkbox" data-check-shopping="${item.id}" ${item.done ? 'checked' : ''}/><span>${item.name}${item.suggested ? ` · au moins ${item.suggested} g` : ''}</span>${item.id.startsWith('stock-') ? '<em>stock faible</em>' : '<button class="icon" data-remove-shopping="' + item.id + '">×</button>'}</label>`).join('')}</div>` : ''}<h3 class="subheading">Produits suivis chez Lidl</h3>${categories.map((category) => { const names = products.filter((name) => priceCategory(name) === category); return names.length ? `<details class="product-category" open><summary>${category} <small>${names.length}</small></summary>${names.map((name) => priceProductCard(name, history, selected)).join('')}</details>` : ''; }).join('') || '<p class="empty">Aucun produit suivi.</p>'}<div class="cart-total"><b>Total estimé</b><strong>${total.toFixed(2)} €</strong></div></section>`;
 }
 function targets() {
   return `<dialog open class="target-dialog"><form id="targets-form"><button class="close" type="button" data-close-targets aria-label="Fermer">×</button><h2>Objectifs quotidiens</h2><p>Facultatifs : ils servent seulement à afficher des pourcentages et ne constituent pas un conseil médical.</p><div class="target-fields">${[['kcal','Calories (kcal)'],['protein','Protéines (g)'],['carbs','Glucides (g)'],['fat','Lipides (g)']].map(([key,label]) => `<label>${label}<input type="number" min="0" name="${key}" value="${state.targets[key]}" /></label>`).join('')}</div><button class="save-targets">Enregistrer les objectifs</button></form></dialog>`;
@@ -260,5 +260,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-29');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-30');
 render();
