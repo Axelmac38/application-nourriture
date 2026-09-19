@@ -1,0 +1,12 @@
+# Dépendances
+node_modules/
+
+# Builds et fichiers temporaires
+dist/
+build/
+*.log
+
+# Secrets et configuration locale
+.env
+.env.*
+!.env.example
