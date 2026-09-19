@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-36';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-37';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -207,7 +207,8 @@ function priceProductCard(name, history, selected) {
   const records = history.filter((item) => item.name === name).sort((a, b) => a.date.localeCompare(b.date));
   const latest = records.at(-1);
   const measure = priceMeasure(name);
-  return `<article class="tracked-product"><label class="product-pick"><input type="checkbox" data-select-price="${name}" ${selected.includes(name) ? 'checked' : ''}/><span><b>${name}</b><small>Lidl · ${priceLabel(name, latest.price)}${measure.unit === 'g' ? ` · paquet ${latest.price.toFixed(2)} €` : ''} · ${records.length} relevé${records.length > 1 ? 's' : ''}</small></span></label><button class="product-toggle" data-price-product="${name}">Voir l’évolution <strong>⌄</strong></button><div class="price-details" hidden data-price-details="${name}"><div class="price-store">Prix relevés chez Lidl · Saint-Martin-d’Hères</div>${priceChart(name, records)}<div class="price-history">${records.map((item) => `<span>${item.date} · ${priceLabel(name, item.price)}${measure.unit === 'g' ? ` · paquet ${item.price.toFixed(2)} €` : ''}${item.quantity > 1 ? ` · ${item.quantity} unités` : ''}</span>`).join('')}</div><button class="small danger" data-remove-price-product="${name}">Supprimer ce produit</button></div></article>`;
+  const details = records.length > 1 ? priceChart(name, records) : '<p class="empty">Un seul relevé.</p>';
+  return `<article class="tracked-product"><label class="product-pick"><input type="checkbox" data-select-price="${name}" ${selected.includes(name) ? 'checked' : ''}/><span><b>${name}</b><small>Lidl · ${priceLabel(name, latest.price)}${measure.unit === 'g' ? ` · paquet ${latest.price.toFixed(2)} €` : ''} · ${records.length} relevé${records.length > 1 ? 's' : ''}</small></span></label><button class="product-toggle" data-price-product="${name}">Voir l’évolution <strong>⌄</strong></button><div class="price-details" hidden data-price-details="${name}">${details}<button class="small danger" data-remove-price-product="${name}">Supprimer ce produit</button></div></article>`;
 }
 function purchaseSpec(name) {
   const foodIds = {
@@ -305,5 +306,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-36');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-37');
 render();
