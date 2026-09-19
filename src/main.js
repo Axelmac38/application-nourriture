@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-4';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-5';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -48,13 +48,16 @@ function foodPreview(foodId, grams) {
   const addition = nutrientsFor(food, grams);
   const current = totalToday();
   const labels = { kcal: ['Énergie', ' kcal'], protein: ['Protéines', ' g'], carbs: ['Glucides', ' g'], fat: ['Lipides', ' g'] };
-  const lines = Object.entries(labels).map(([key, [label, suffix]]) => {
+  const charts = Object.entries(labels).map(([key, [label, suffix]]) => {
     const target = Number(state.targets[key]);
     const after = number(current[key] + addition[key]);
-    const progress = target ? `${number((after / target) * 100)} % · ${after > target ? `dépassement de ${number(after - target)}${suffix}` : `reste ${number(target - after)}${suffix}`}` : 'objectif non renseigné';
-    return `<li><b>${label}</b><span>+${number(addition[key])}${suffix} → ${after}${suffix}</span><small>${progress}</small></li>`;
+    if (!target) return `<article class="donut-card no-target"><b>${label}</b><strong>+${number(addition[key])}${suffix}</strong><small>Objectif à renseigner</small></article>`;
+    const beforePercent = Math.min(100, number((current[key] / target) * 100));
+    const afterPercent = Math.min(100, number((after / target) * 100));
+    const status = after > target ? `+${number(after - target)}${suffix} au-dessus` : `${number(target - after)}${suffix} restant`;
+    return `<article class="donut-card"><div class="donut" style="--before:${beforePercent}%;--after:${afterPercent}%" aria-label="${label} : ${afterPercent} % de l’objectif après ajout"><span>${number(afterPercent)}<small>%</small></span></div><b>${label}</b><strong>+${number(addition[key])}${suffix}</strong><small>${status}</small></article>`;
   }).join('');
-  return `<aside id="food-preview" class="food-preview"><h3>Effet avant ajout</h3><p><b>${food.name}</b> · ${grams} g</p><ul>${lines}</ul><p class="hint">Ce repère compare seulement aux objectifs que tu as renseignés ; il ne remplace pas un conseil nutritionnel personnalisé.</p></aside>`;
+  return `<aside id="food-preview" class="food-preview"><h3>Effet avant ajout</h3><p><b>${food.name}</b> · ${grams} g</p><div class="donut-grid">${charts}</div><p class="hint">Vert clair : déjà consommé · vert foncé : ajout proposé. Ce repère compare seulement aux objectifs renseignés.</p></aside>`;
 }
 function addLog(foodId, grams, meal = 'Petit-déjeuner', name = null) {
   const food = state.foods.find((item) => item.id === foodId);
@@ -137,5 +140,5 @@ function updateFoodPreview() {
   preview.outerHTML = foodPreview(form.elements.foodId.value, form.elements.grams.value);
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-4');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-5');
 render();
