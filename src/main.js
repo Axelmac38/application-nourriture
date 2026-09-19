@@ -316,7 +316,7 @@ function ingredientLine(item = null, removable = false) {
 }
 function render() {
   const content = view === 'journal' ? journal() : view === 'recettes' ? recipes() : view === 'stock' ? stock() : shopping();
-  app.innerHTML = `<header><a href="#" class="brand">repas<span>&</span>stock</a><small>Données enregistrées sur cet appareil</small></header>${content}${nav()}${toast ? `<div class="toast">${toast}</div>` : ''}`;
+  app.innerHTML = `<header><a href="#" class="brand">repas<span>&</span>stock</a></header>${content}${nav()}${toast ? `<div class="toast">${toast}</div>` : ''}`;
   bind();
 }
 function bind() {
@@ -437,5 +437,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-55');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-56');
 render();
