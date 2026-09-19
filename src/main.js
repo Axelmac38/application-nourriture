@@ -104,10 +104,16 @@ function targetCard(label, key, value, suffix) {
   const percent = target ? Math.min(100, Math.round((value / target) * 100)) : null;
   return `<article class="metric"><span>${label}</span><strong>${number(value)}${suffix}</strong>${percent === null ? '<small>Objectif non renseigné</small>' : `<small>${percent}% de ${target}${suffix}</small><i><b style="width:${percent}%"></b></i>`}</article>`;
 }
-function foodOptions() {
+function foodOptions(selectedFoodId = null) {
   const groups = new Map();
   state.foods.forEach((food) => groups.set(food.category || 'Autres', [...(groups.get(food.category || 'Autres') || []), food]));
-  return [...groups.entries()].map(([category, foods]) => `<optgroup label="${category}">${foods.map((food) => `<option value="${food.id}">${food.name}</option>`).join('')}</optgroup>`).join('');
+  return [...groups.entries()].map(([category, foods]) => `<optgroup label="${category}">${foods.map((food) => `<option value="${food.id}" ${food.id === selectedFoodId ? 'selected' : ''}>${food.name}</option>`).join('')}</optgroup>`).join('');
+}
+function mealOptions(selectedMeal) {
+  return ['Petit-déjeuner', 'Déjeuner', 'Dîner', 'Collation', 'Repas'].map((meal) => `<option ${meal === selectedMeal ? 'selected' : ''}>${meal}</option>`).join('');
+}
+function recipeOptions(selectedRecipeId) {
+  return state.recipes.map((recipe) => `<option value="${recipe.id}" ${recipe.id === selectedRecipeId ? 'selected' : ''}>${recipe.name}</option>`).join('');
 }
 
 function foodSearchOptions() {
@@ -163,7 +169,7 @@ function journal() {
   <button class="goals-button" data-action="open-targets"><span>Objectifs quotidiens</span><b>Définir ou modifier →</b></button>
   <section class="panel"><h2>Ajouter un aliment</h2>
   <form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Aliment<input name="foodSearch" placeholder="Rechercher dans la liste…" autocomplete="off" /><select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}</section>
-  <section class="panel"><h2>Repas enregistrés</h2>${logs.length ? `<div class="log-list">${logs.map((entry) => `<article><div><b>${entry.meal}</b><span>${entry.name} · ${entry.grams} g</span></div><strong>${entry.kcal} kcal</strong><button class="icon" data-remove-log="${entry.id}" aria-label="Supprimer">×</button></article>`).join('')}</div>` : '<p class="empty">Aucun repas enregistré pour aujourd’hui.</p>'}</section>`;
+  <section class="panel"><h2>Repas enregistrés</h2>${logs.length ? `<div class="log-list">${logs.map((entry) => `<article data-edit-log="${entry.id}" title="Double-cliquer pour modifier"><div><b>${entry.meal}</b><span>${entry.name} · ${entry.grams} g</span></div><strong>${entry.kcal} kcal</strong><button class="icon" data-remove-log="${entry.id}" aria-label="Supprimer">×</button></article>`).join('')}</div>` : '<p class="empty">Aucun repas enregistré pour aujourd’hui.</p>'}</section>`;
 }
 function recipes() {
   return `<section class="hero"><p>RECETTES</p><h1>Cuisiner, puis enregistrer</h1><span>Les ingrédients peuvent être déduits du stock.</span></section>
@@ -260,6 +266,13 @@ function shopping() {
 function targets() {
   return `<dialog open class="target-dialog"><form id="targets-form"><button class="close" type="button" data-close-targets aria-label="Fermer">×</button><h2>Objectifs quotidiens</h2><p>Facultatifs : ils servent seulement à afficher des pourcentages et ne constituent pas un conseil médical.</p><div class="target-fields">${[['kcal','Calories (kcal)'],['protein','Protéines (g)'],['carbs','Glucides (g)'],['fat','Lipides (g)']].map(([key,label]) => `<label>${label}<input type="number" min="0" name="${key}" value="${state.targets[key]}" /></label>`).join('')}</div><button class="save-targets">Enregistrer les objectifs</button></form></dialog>`;
 }
+function logEditor(entry) {
+  const recipe = state.recipes.find((item) => item.id === entry.recipeId) || state.recipes.find((item) => item.name === entry.name);
+  if (recipe) {
+    return `<dialog open class="target-dialog"><form id="recipe-log-editor-form" data-log-id="${entry.id}"><button class="close" type="button" data-close-log-editor aria-label="Fermer">×</button><h2>Modifier le repas</h2><p>Cette entrée est une recette : elle reste donc liée à sa composition, et non à un aliment seul.</p><div class="target-fields"><label>Repas<select name="meal">${mealOptions(entry.meal)}</select></label><label>Recette<select name="recipeId">${recipeOptions(recipe.id)}</select></label><label>Quantité totale<input value="${entry.grams} g" disabled /></label></div><button class="save-targets">Enregistrer les modifications</button></form></dialog>`;
+  }
+  return `<dialog open class="target-dialog"><form id="log-editor-form" data-log-id="${entry.id}"><button class="close" type="button" data-close-log-editor aria-label="Fermer">×</button><h2>Modifier le repas</h2><p>Modifie le repas, l’aliment ou la quantité consommée.</p><div class="target-fields"><label>Repas<select name="meal"><option ${entry.meal === 'Petit-déjeuner' ? 'selected' : ''}>Petit-déjeuner</option><option ${entry.meal === 'Déjeuner' ? 'selected' : ''}>Déjeuner</option><option ${entry.meal === 'Dîner' ? 'selected' : ''}>Dîner</option><option ${entry.meal === 'Collation' ? 'selected' : ''}>Collation</option></select></label><label>Aliment<select name="foodId">${foodOptions(entry.foodId)}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="${entry.grams}" required /></label></div><button class="save-targets">Enregistrer les modifications</button></form></dialog>`;
+}
 function ingredientLine() {
   return `<div class="ingredient-line"><label>Ingrédient<select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label></div>`;
 }
@@ -275,10 +288,11 @@ function bind() {
   app.querySelector('#log-form select[name="foodId"]')?.addEventListener('change', updateFoodPreview);
   app.querySelector('#log-form input[name="grams"]')?.addEventListener('input', updateFoodPreview);
   app.querySelectorAll('[data-remove-log]').forEach((button) => button.addEventListener('click', () => { state.logs = state.logs.filter((item) => item.id !== button.dataset.removeLog); save(); render(); }));
+  app.querySelectorAll('[data-edit-log]').forEach((article) => article.addEventListener('dblclick', () => { const entry = state.logs.find((item) => item.id === article.dataset.editLog); if (entry) { app.insertAdjacentHTML('beforeend', logEditor(entry)); bindLogEditor(); } }));
   app.querySelector('[data-action="open-targets"]')?.addEventListener('click', () => { app.insertAdjacentHTML('beforeend', targets()); bindTargets(); });
   app.querySelector('[data-add-ingredient]')?.addEventListener('click', () => { app.querySelector('#ingredient-lines').insertAdjacentHTML('beforeend', ingredientLine()); });
   app.querySelector('#recipe-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodIds = data.getAll('foodId'); const grams = data.getAll('grams'); state.recipes.unshift({ id: crypto.randomUUID(), name: data.get('name'), ingredients: foodIds.map((foodId, index) => ({ foodId, grams: Number(grams[index]) })) }); save(); notify('Recette créée.'); });
-  app.querySelectorAll('[data-cook]').forEach((button) => button.addEventListener('click', () => { const recipe = state.recipes.find((item) => item.id === button.dataset.cook); const n = recipeNutrients(recipe, state.foods); state.logs.unshift({ id: crypto.randomUUID(), date: today(), meal: 'Repas', name: recipe.name, grams: recipe.ingredients.reduce((sum, item) => sum + item.grams, 0), ...n }); recipe.ingredients.forEach((ingredient) => { const stock = state.stock.find((item) => item.foodId === ingredient.foodId); if (stock) stock.quantity = Math.max(0, Number(stock.quantity) - Number(ingredient.grams)); }); save(); view = 'journal'; notify('Recette ajoutée et stock mis à jour.'); }));
+  app.querySelectorAll('[data-cook]').forEach((button) => button.addEventListener('click', () => { const recipe = state.recipes.find((item) => item.id === button.dataset.cook); const n = recipeNutrients(recipe, state.foods); state.logs.unshift({ id: crypto.randomUUID(), date: today(), meal: 'Repas', name: recipe.name, recipeId: recipe.id, grams: recipe.ingredients.reduce((sum, item) => sum + item.grams, 0), ...n }); recipe.ingredients.forEach((ingredient) => { const stock = state.stock.find((item) => item.foodId === ingredient.foodId); if (stock) stock.quantity = Math.max(0, Number(stock.quantity) - Number(ingredient.grams)); }); save(); view = 'journal'; notify('Recette ajoutée et stock mis à jour.'); }));
   app.querySelector('#stock-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const existing = state.stock.find((item) => item.foodId === data.get('foodId')); if (existing) { existing.quantity += Number(data.get('quantity')); existing.minimum = Number(data.get('minimum')); } else { state.stock.push({ id: crypto.randomUUID(), foodId: data.get('foodId'), quantity: Number(data.get('quantity')), minimum: Number(data.get('minimum')) }); } save(); notify('Stock mis à jour.'); });
   app.querySelector('#stock-form select[name="foodId"]')?.addEventListener('change', updateStockFormDefaults);
   app.querySelectorAll('[data-adjust-stock]').forEach((button) => button.addEventListener('click', () => { const item = state.stock.find((stock) => stock.id === button.dataset.adjustStock); item.quantity = Math.max(0, Number(item.quantity) + Number(button.dataset.change)); save(); render(); }));
@@ -290,6 +304,43 @@ function bind() {
   app.querySelectorAll('[data-select-price]').forEach((input) => input.addEventListener('change', () => { state.shoppingSelection = state.shoppingSelection || []; state.shoppingQuantities = state.shoppingQuantities || {}; if (input.checked && !state.shoppingQuantities[input.dataset.selectPrice]) state.shoppingQuantities[input.dataset.selectPrice] = purchaseSpec(input.dataset.selectPrice).quantity; state.shoppingSelection = input.checked ? [...new Set([...state.shoppingSelection, input.dataset.selectPrice])] : state.shoppingSelection.filter((name) => name !== input.dataset.selectPrice); save(); render(); }));
   app.querySelectorAll('[data-shopping-quantity]').forEach((input) => input.addEventListener('change', () => { state.shoppingQuantities = state.shoppingQuantities || {}; state.shoppingQuantities[input.dataset.shoppingQuantity] = Math.max(1, Number(input.value) || 1); save(); render(); }));
   app.querySelectorAll('[data-price-food]').forEach((form) => form.addEventListener('submit', (event) => { event.preventDefault(); const food = state.foods.find((item) => item.id === form.dataset.priceFood); const price = Number(new FormData(form).get('price')); if (!food || !Number.isFinite(price) || price < 0) return; food.price = price; food.priceHistory = [...(food.priceHistory || []), { date: today(), price }]; save(); notify('Prix mis à jour.'); }));
+}
+function bindLogEditor() {
+  const dialog = app.querySelector('#log-editor-form')?.closest('dialog');
+  const form = dialog?.querySelector('#log-editor-form');
+  const recipeDialog = app.querySelector('#recipe-log-editor-form')?.closest('dialog');
+  const recipeForm = recipeDialog?.querySelector('#recipe-log-editor-form');
+  const activeDialog = dialog || recipeDialog;
+  if (!activeDialog) return;
+  activeDialog.querySelector('[data-close-log-editor]').addEventListener('click', () => activeDialog.remove());
+  if (recipeForm) {
+    recipeForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const data = new FormData(recipeForm);
+      const entry = state.logs.find((item) => item.id === recipeForm.dataset.logId);
+      const recipe = state.recipes.find((item) => item.id === data.get('recipeId'));
+      if (!entry || !recipe) return;
+      const nutrients = recipeNutrients(recipe, state.foods);
+      Object.assign(entry, { meal: data.get('meal'), recipeId: recipe.id, name: recipe.name, grams: recipe.ingredients.reduce((sum, item) => sum + Number(item.grams), 0), ...nutrients });
+      save();
+      recipeDialog.remove();
+      notify('Recette modifiée.');
+    });
+    return;
+  }
+  if (!dialog || !form) return;
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const data = new FormData(form);
+    const entry = state.logs.find((item) => item.id === form.dataset.logId);
+    const food = state.foods.find((item) => item.id === data.get('foodId'));
+    const grams = Number(data.get('grams'));
+    if (!entry || !food || !Number.isFinite(grams) || grams < 1) return;
+    Object.assign(entry, { meal: data.get('meal'), foodId: food.id, name: food.name, grams, ...nutrientsFor(food, grams) });
+    save();
+    dialog.remove();
+    notify('Repas modifié.');
+  });
 }
 function updateFoodPreview() {
   const form = app.querySelector('#log-form');
