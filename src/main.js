@@ -1,9 +1,21 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-19';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-20';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
 const SAMPLE_RECIPES_VERSION = 'sample-recipes-20260919';
 const STOCK_VERSION = 'stock-axel-20260919-v3';
+const PRICE_HISTORY_VERSION = 'lidl-prices-20260919-v1';
+const PRICE_RECORDS = [
+  ['Flocons d’avoine', '2025-11-26', 0.85, 3], ['Flocons d’avoine', '2026-05-23', 0.79, 2],
+  ['Lentilles vertes', '2025-11-26', 1.63, 3], ['Coquillettes 1 kg', '2025-11-26', 1.05, 2], ['Coquillettes 1 kg', '2025-12-01', 1.03, 3], ['Coquillettes 1 kg', '2026-01-30', 0.97, 3],
+  ['Mayonnaise', '2025-12-01', 1.60, 1], ['Mayonnaise', '2026-01-30', 1.52, 1],
+  ['Fromage blanc', '2025-11-26', 1.79, 6], ['Fromage blanc', '2026-01-30', 1.79, 4],
+  ['Emmental râpé', '2025-11-26', 3.74, 1], ['Emmental râpé', '2026-01-30', 1.22, 1],
+  ['Pain de mie', '2025-11-26', 1.51, 1], ['Pain de mie', '2026-01-30', 1.48, 1],
+  ['Crème fraîche épaisse', '2025-11-26', 1.72, 2], ['Crème fraîche épaisse', '2026-01-30', 1.72, 1],
+  ['Filtre à eau classe A', '2026-03-16', 4.40, 1]
+].map(([name, date, price, quantity]) => ({ name, date, price, quantity }));
+const NON_FOOD_ITEMS = ['Filtre à eau classe A'];
 const app = document.querySelector('#app');
 let state = loadState();
 let view = 'journal';
@@ -19,6 +31,8 @@ function loadState() {
       next.testMealVersion = TEST_MEAL_VERSION;
       next.sampleRecipesVersion = SAMPLE_RECIPES_VERSION;
       next.stockVersion = STOCK_VERSION;
+      next.priceHistoryVersion = PRICE_HISTORY_VERSION;
+      next.priceRecords = PRICE_RECORDS;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     }
@@ -35,6 +49,7 @@ function loadState() {
       next.stockVersion = STOCK_VERSION;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     }
+    if (next.priceHistoryVersion !== PRICE_HISTORY_VERSION) { next.priceHistoryVersion = PRICE_HISTORY_VERSION; next.priceRecords = PRICE_RECORDS; localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); }
     const currentWhey = next.foods.find((food) => food.id === 'whey');
     const packageWhey = SAMPLE_FOODS.find((food) => food.id === 'whey');
     if (currentWhey?.name.includes('valeur générique')) Object.assign(currentWhey, packageWhey);
@@ -144,10 +159,14 @@ function shopping() {
   const low = lowStock(state);
   const items = [...low.map((item) => ({ id: item.id, name: foodName(state, item.foodId), suggested: Math.max(0, Number(item.minimum) - Number(item.quantity)) })), ...state.shopping];
   const priced = state.foods.filter((food) => food.price);
+  const history = state.priceRecords || [];
+  const nonFood = history.filter((item) => NON_FOOD_ITEMS.includes(item.name));
   return `<section class="hero"><p>LISTE DE COURSES</p><h1>À acheter quand tu veux</h1><span>Propositions fondées sur les seuils de stock.</span></section>
   <section class="panel"><h2>Ajouter un article</h2><form id="shopping-form" class="inline-form"><input name="name" required placeholder="Ex. œufs" /><button>Ajouter</button></form></section>
   <section class="panel"><h2>À prévoir</h2>${items.length ? `<div class="shopping-list">${items.map((item) => `<label><input type="checkbox" data-check-shopping="${item.id}" ${item.done ? 'checked' : ''}/><span>${item.name}${item.suggested ? ` · au moins ${item.suggested} g` : ''}</span>${item.id.startsWith('stock-') ? '<em>stock faible</em>' : '<button class="icon" data-remove-shopping="' + item.id + '">×</button>'}</label>`).join('')}</div>` : '<p class="empty">Aucun produit à acheter pour le moment.</p>'}</section>
-  <section class="panel"><h2>Prix connus</h2>${priced.map((food) => `<article class="stock-list"><div><b>${food.name}</b><span>${food.price.toFixed(2)} € · ${food.priceQuantity} ${food.priceUnit || 'g'}</span>${food.priceHistory?.length ? `<small>Historique : ${food.priceHistory.map((entry) => `${entry.date} · ${entry.price.toFixed(2)} €`).join(' → ')}</small>` : ''}</div><form class="price-form" data-price-food="${food.id}"><input name="price" type="number" step="0.01" min="0" value="${food.price.toFixed(2)}" aria-label="Nouveau prix" /><button class="small">Modifier</button></form></article>`).join('')}<p class="empty">Chaque modification est conservée dans l’historique du prix.</p></section>`;
+  <section class="panel"><h2>Prix connus</h2>${priced.map((food) => `<article class="stock-list"><div><b>${food.name}</b><span>${food.price.toFixed(2)} € · ${food.priceQuantity} ${food.priceUnit || 'g'}</span>${food.priceHistory?.length ? `<small>Historique : ${food.priceHistory.map((entry) => `${entry.date} · ${entry.price.toFixed(2)} €`).join(' → ')}</small>` : ''}</div><form class="price-form" data-price-food="${food.id}"><input name="price" type="number" step="0.01" min="0" value="${food.price.toFixed(2)}" aria-label="Nouveau prix" /><button class="small">Modifier</button></form></article>`).join('')}<p class="empty">Chaque modification est conservée dans l’historique du prix.</p></section>
+  <section class="panel"><h2>Historique Lidl · Saint-Martin-d’Hères</h2>${history.filter((item) => !NON_FOOD_ITEMS.includes(item.name)).map((item) => `<article class="stock-list"><div><b>${item.name}</b><span>${item.date} · ${item.quantity > 1 ? `${item.quantity} × ` : ''}${item.price.toFixed(2)} €</span></div></article>`).join('')}</section>
+  <section class="panel"><h2>Produits non alimentaires</h2>${nonFood.map((item) => `<article class="stock-list"><div><b>${item.name}</b><span>${item.date} · ${item.price.toFixed(2)} €</span></div></article>`).join('') || '<p class="empty">Aucun produit non alimentaire enregistré.</p>'}</section>`;
 }
 function targets() {
   return `<dialog open class="target-dialog"><form id="targets-form"><button class="close" type="button" data-close-targets aria-label="Fermer">×</button><h2>Objectifs quotidiens</h2><p>Facultatifs : ils servent seulement à afficher des pourcentages et ne constituent pas un conseil médical.</p><div class="target-fields">${[['kcal','Calories (kcal)'],['protein','Protéines (g)'],['carbs','Glucides (g)'],['fat','Lipides (g)']].map(([key,label]) => `<label>${label}<input type="number" min="0" name="${key}" value="${state.targets[key]}" /></label>`).join('')}</div><button class="save-targets">Enregistrer les objectifs</button></form></dialog>`;
@@ -204,5 +223,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-19');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-20');
 render();
