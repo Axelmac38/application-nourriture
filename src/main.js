@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-42';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-43';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -39,6 +39,7 @@ const app = document.querySelector('#app');
 let state = loadState();
 let view = 'journal';
 let toast = '';
+let journalComposerOpen = true;
 
 function loadState() {
   try {
@@ -101,8 +102,13 @@ function notify(message) { toast = message; render(); setTimeout(() => { toast =
 function totalToday() { return addNutrients(state.logs.filter((entry) => entry.date === today())); }
 function targetCard(label, key, value, suffix) {
   const target = Number(state.targets[key]);
-  const percent = target ? Math.min(100, Math.round((value / target) * 100)) : null;
-  return `<article class="metric"><span>${label}</span><strong>${number(value)}${suffix}</strong>${percent === null ? '<small>Objectif non renseigné</small>' : `<small>${percent}% de ${target}${suffix}</small><i><b style="width:${percent}%"></b></i>`}</article>`;
+  const actualPercent = target ? number((value / target) * 100) : null;
+  const consumedPercent = target ? Math.min(100, Math.max(0, actualPercent)) : 0;
+  const overflowPercent = target ? Math.min(100, Math.max(0, actualPercent - 100)) : 0;
+  const donut = target
+    ? `<div class="donut ${overflowPercent ? 'over-target' : ''}" style="--before:0%;--after:${consumedPercent}%;--overflow:${overflowPercent}%" aria-label="${label} : ${actualPercent} % de l’objectif"><span>${actualPercent}<small>%</small></span></div>`
+    : '<div class="donut metric-empty-donut" aria-label="Objectif non renseigné"><span>—</span></div>';
+  return `<article class="metric metric-donut-card">${donut}<span>${label}</span><strong>${number(value)}${suffix}</strong>${target ? `<small>${number(Math.abs(target - value))}${suffix} ${value > target ? 'au-dessus' : 'restant'}</small>` : '<small>Objectif non renseigné</small>'}</article>`;
 }
 function foodOptions(selectedFoodId = null) {
   const groups = new Map();
@@ -167,8 +173,7 @@ function journal() {
   return `<section class="hero"><p>AUJOURD’HUI</p><h1>Ton journal alimentaire</h1><span>${new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</span></section>
   <section class="metrics">${targetCard('Énergie', 'kcal', totals.kcal, ' kcal')}${targetCard('Protéines', 'protein', totals.protein, ' g')}${targetCard('Glucides', 'carbs', totals.carbs, ' g')}${targetCard('Lipides', 'fat', totals.fat, ' g')}</section>
   <button class="goals-button" data-action="open-targets"><span>Objectifs quotidiens</span><b>Définir ou modifier →</b></button>
-  <section class="panel"><h2>Ajouter un aliment</h2>
-  <form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Aliment<input name="foodSearch" placeholder="Rechercher dans la liste…" autocomplete="off" /><select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}</section>
+  <section class="panel food-composer"><div class="section-title"><h2>Ajouter un aliment</h2><button class="link" type="button" data-toggle-food-composer>${journalComposerOpen ? 'Masquer' : 'Afficher'}</button></div>${journalComposerOpen ? `<form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Aliment<input name="foodSearch" placeholder="Rechercher dans la liste…" autocomplete="off" /><select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}` : '<p class="empty">Le formulaire et son aperçu sont masqués.</p>'}</section>
   <section class="panel"><h2>Repas enregistrés</h2>${logs.length ? `<div class="log-list">${logs.map((entry) => `<article data-log-row="${entry.id}" title="Double-cliquer pour modifier"><div><b>${entry.meal}</b><span>${entry.name} · ${entry.grams} g</span></div><strong>${entry.kcal} kcal</strong><div class="log-actions"><button class="small" data-edit-log="${entry.id}">Modifier</button><button class="icon" data-remove-log="${entry.id}" aria-label="Supprimer">×</button></div></article>`).join('')}</div>` : '<p class="empty">Aucun repas enregistré pour aujourd’hui.</p>'}</section>`;
 }
 function recipes() {
@@ -283,6 +288,7 @@ function render() {
 }
 function bind() {
   app.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; render(); }));
+  app.querySelector('[data-toggle-food-composer]')?.addEventListener('click', () => { journalComposerOpen = !journalComposerOpen; render(); });
   app.querySelector('#log-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); addLog(data.get('foodId'), Number(data.get('grams')), data.get('meal')); save(); notify('Aliment ajouté au journal.'); });
   app.querySelector('#log-form input[name="foodSearch"]')?.addEventListener('input', updateFoodSearch);
   app.querySelector('#log-form select[name="foodId"]')?.addEventListener('change', updateFoodPreview);
@@ -392,5 +398,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-42');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-43');
 render();
