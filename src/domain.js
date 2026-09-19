@@ -30,7 +30,7 @@ export const SAMPLE_FOODS = [
   { id: 'greek-yogurt', name: 'Yaourt grec nature 0 %', category: 'Produits laitiers', unit: 'g', kcal: 59, protein: 10, carbs: 3.6, fat: 0.4 },
   { id: 'milk', name: 'Lait entier', category: 'Produits laitiers', unit: 'g', kcal: 61, protein: 3.2, carbs: 4.8, fat: 3.3 },
   { id: 'mozzarella', name: 'Mozzarella', category: 'Produits laitiers', unit: 'g', kcal: 280, protein: 28, carbs: 3.1, fat: 17 },
-  { id: 'emmental', name: 'Emmental râpé', category: 'Produits laitiers', unit: 'g', kcal: 390, protein: 28, carbs: 1, fat: 30 },
+  { id: 'emmental', name: 'Emmental râpé', category: 'Produits laitiers', unit: 'g', kcal: 379, protein: 28, carbs: 1, fat: 29 },
   { id: 'flour', name: 'Farine de blé', category: 'Céréales', unit: 'g', kcal: 364, protein: 10.3, carbs: 76.3, fat: 1 },
   { id: 'mayonnaise', name: 'Mayonnaise classique', category: 'Condiments', unit: 'g', kcal: 680, protein: 1, carbs: 1, fat: 75 },
   { id: 'whey', name: 'Whey protéinée — valeurs de mon paquet', category: 'Compléments', unit: 'g', kcal: 384, protein: 72, carbs: 8.4, fat: 6.4 }

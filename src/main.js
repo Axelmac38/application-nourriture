@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-16';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-17';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -37,6 +37,9 @@ function loadState() {
     const currentWhey = next.foods.find((food) => food.id === 'whey');
     const packageWhey = SAMPLE_FOODS.find((food) => food.id === 'whey');
     if (currentWhey?.name.includes('valeur générique')) Object.assign(currentWhey, packageWhey);
+    const currentEmmental = next.foods.find((food) => food.id === 'emmental');
+    const packageEmmental = SAMPLE_FOODS.find((food) => food.id === 'emmental');
+    if (currentEmmental && packageEmmental) Object.assign(currentEmmental, packageEmmental);
     const currentRedLentils = next.foods.find((food) => food.id === 'lentils-red');
     const packageRedLentils = SAMPLE_FOODS.find((food) => food.id === 'lentils-red');
     if (currentRedLentils && packageRedLentils) Object.assign(currentRedLentils, packageRedLentils);
@@ -197,5 +200,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-16');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-17');
 render();
