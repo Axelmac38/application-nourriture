@@ -1,9 +1,9 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-37';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-38';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
 const SAMPLE_RECIPES_VERSION = 'sample-recipes-20260919';
-const STOCK_VERSION = 'stock-axel-20260919-v3';
+const STOCK_VERSION = 'stock-axel-20260919-v4';
 const PRICE_HISTORY_VERSION = 'lidl-prices-20260919-v3';
 const PRICE_RECORDS = [
   ['Flocons d’avoine', '2025-11-26', 0.85, 3], ['Flocons d’avoine', '2026-05-23', 0.79, 2],
@@ -77,6 +77,7 @@ function loadState() {
     const currentRedLentils = next.foods.find((food) => food.id === 'lentils-red');
     const packageRedLentils = SAMPLE_FOODS.find((food) => food.id === 'lentils-red');
     if (currentRedLentils && packageRedLentils) Object.assign(currentRedLentils, packageRedLentils);
+    ['egg', 'lentils-green'].forEach((id) => { const current = next.foods.find((food) => food.id === id); const catalog = SAMPLE_FOODS.find((food) => food.id === id); if (current && catalog) Object.assign(current, catalog); });
     if (next.testMealVersion !== TEST_MEAL_VERSION) {
       next.logs = testMealLogs(next.foods);
       next.testMealVersion = TEST_MEAL_VERSION;
@@ -170,8 +171,8 @@ function recipes() {
 }
 function stock() {
   return `<section class="hero"><p>PLACARDS</p><h1>Ce qu’il reste à la maison</h1></section>
-  <section class="panel"><h2>Ajouter au stock</h2><form id="stock-form" class="form-grid"><label>Aliment<select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="quantity" type="number" min="0" value="100" required /></label><label>Alerte sous (g)<input name="minimum" type="number" min="0" value="50" required /></label><button>Ajouter</button></form></section>
-  <section class="panel"><h2>Stock actuel</h2>${state.stock.length ? `<div class="stock-list">${state.stock.map((item) => `<article class="${Number(item.quantity) <= Number(item.minimum) ? 'low' : ''}"><div><b>${foodName(state, item.foodId)}</b><span>${item.quantity} g disponibles · seuil ${item.minimum} g</span></div><div><button class="small" data-adjust-stock="${item.id}" data-change="-50">− 50 g</button><button class="small" data-adjust-stock="${item.id}" data-change="50">+ 50 g</button></div></article>`).join('')}</div>` : '<p class="empty">Le stock est vide.</p>'}</section>`;
+  <section class="panel"><h2>Ajouter au stock</h2><form id="stock-form" class="form-grid"><label>Aliment<select name="foodId">${foodOptions()}</select></label><label>Quantité (g ou unités)<input name="quantity" type="number" min="0" value="100" required /></label><label>Alerte sous (g ou unités)<input name="minimum" type="number" min="0" value="50" required /></label><button>Ajouter</button></form></section>
+  <section class="panel"><h2>Stock actuel</h2>${state.stock.length ? `<div class="stock-list">${state.stock.map((item) => { const food = state.foods.find((entry) => entry.id === item.foodId); const unit = food?.stockUnit || 'g'; const step = unit === 'unité' ? 1 : 50; return `<article class="${Number(item.quantity) <= Number(item.minimum) ? 'low' : ''}"><div><b>${foodName(state, item.foodId)}</b><span>${item.quantity} ${unit}${item.quantity > 1 && unit === 'unité' ? 's' : ''} disponibles · seuil ${item.minimum} ${unit}${item.minimum > 1 && unit === 'unité' ? 's' : ''}</span></div><div><button class="small" data-adjust-stock="${item.id}" data-change="-${step}">− ${step} ${unit}</button><button class="small" data-adjust-stock="${item.id}" data-change="${step}">+ ${step} ${unit}</button></div></article>`; }).join('')}</div>` : '<p class="empty">Le stock est vide.</p>'}</section>`;
 }
 function priceMeasure(name) {
   const grams = PRICE_MEASURES[name];
@@ -306,5 +307,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-37');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-38');
 render();

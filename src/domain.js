@@ -12,13 +12,13 @@ export const SAMPLE_FOODS = [
   { id: 'clementine', name: 'Clémentine', category: 'Fruits', unit: 'g', kcal: 47, protein: 0.9, carbs: 12, fat: 0.2 },
   { id: 'lemon', name: 'Citron', category: 'Fruits', unit: 'g', kcal: 29, protein: 1.1, carbs: 9.3, fat: 0.3 },
   { id: 'watermelon', name: 'Pastèque', category: 'Fruits', unit: 'g', kcal: 30, protein: 0.6, carbs: 7.6, fat: 0.2 },
-  { id: 'egg', name: 'Œuf entier', category: 'Protéines animales', unit: 'g', kcal: 143, protein: 12.6, carbs: 0.7, fat: 9.5, price: 4.29, priceQuantity: 20, priceUnit: 'œufs' },
+  { id: 'egg', name: 'Œuf entier', category: 'Protéines animales', unit: 'g', stockUnit: 'unité', kcal: 143, protein: 12.6, carbs: 0.7, fat: 9.5, price: 4.29, priceQuantity: 20, priceUnit: 'œufs' },
   { id: 'chicken', name: 'Blanc de poulet cuit', category: 'Protéines animales', unit: 'g', kcal: 165, protein: 31, carbs: 0, fat: 3.6 },
   { id: 'tuna', name: 'Thon au naturel égoutté', category: 'Protéines animales', unit: 'g', kcal: 116, protein: 25.5, carbs: 0, fat: 0.8 },
   { id: 'salmon', name: 'Saumon cuit', category: 'Protéines animales', unit: 'g', kcal: 208, protein: 20, carbs: 0, fat: 13 },
   { id: 'lentils', name: 'Lentilles cuites', category: 'Protéines végétales', unit: 'g', kcal: 116, protein: 9, carbs: 20, fat: 0.4 },
-  { id: 'lentils-red', name: 'Lentilles corail sèches', category: 'Légumineuses sèches', unit: 'g', kcal: 340, protein: 25.5, carbs: 53, fat: 1.5 },
-  { id: 'lentils-green', name: 'Lentilles vertes sèches', category: 'Légumineuses sèches', unit: 'g', kcal: 330, protein: 24, carbs: 50, fat: 1.5 },
+  { id: 'lentils-red', name: 'Lentilles corail sèches', category: 'Céréales', unit: 'g', kcal: 340, protein: 25.5, carbs: 53, fat: 1.5 },
+  { id: 'lentils-green', name: 'Lentilles vertes sèches', category: 'Céréales', unit: 'g', kcal: 330, protein: 24, carbs: 50, fat: 1.5 },
   { id: 'chickpeas', name: 'Pois chiches cuits', category: 'Protéines végétales', unit: 'g', kcal: 164, protein: 8.9, carbs: 27.4, fat: 2.6 },
   { id: 'black-beans', name: 'Haricots noirs cuits', category: 'Protéines végétales', unit: 'g', kcal: 132, protein: 8.9, carbs: 23.7, fat: 0.5 },
   { id: 'tofu', name: 'Tofu ferme', category: 'Protéines végétales', unit: 'g', kcal: 144, protein: 17.3, carbs: 2.8, fat: 8.7 },
@@ -53,7 +53,8 @@ export const emptyState = () => ({
     { id: 'stock-oats', foodId: 'oats', quantity: 500, minimum: 500 },
     { id: 'stock-flour', foodId: 'flour', quantity: 2000, minimum: 1000 },
     { id: 'stock-emmental', foodId: 'emmental', quantity: 500, minimum: 100 },
-    { id: 'stock-mayonnaise', foodId: 'mayonnaise', quantity: 200, minimum: 100, packageQuantity: 500 }
+    { id: 'stock-mayonnaise', foodId: 'mayonnaise', quantity: 200, minimum: 100, packageQuantity: 500 },
+    { id: 'stock-eggs', foodId: 'egg', quantity: 20, minimum: 10 }
   ],
   shopping: []
 });
