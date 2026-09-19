@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-38';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-39';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -34,6 +34,7 @@ const PRICE_MEASURES = {
   'Fromage blanc': 1000, 'Emmental râpé': 500, 'Mayonnaise': 500,
   'Ail 250 g': 250, 'Citron 500 g': 500
 };
+const STOCK_PURCHASE_QUANTITIES = { rice: 1000, pasta: 1000, 'lentils-red': 450, 'lentils-green': 500, oats: 1000, flour: 1000, emmental: 500, mayonnaise: 500, egg: 20 };
 const app = document.querySelector('#app');
 let state = loadState();
 let view = 'journal';
@@ -169,9 +170,17 @@ function recipes() {
   <section class="panel"><h2>Nouvelle recette</h2><form id="recipe-form"><label class="recipe-name">Nom<input name="name" required placeholder="Ex. bol protéiné" /></label><div id="ingredient-lines">${ingredientLine()}</div><button class="add-line" type="button" data-add-ingredient>+ Ajouter un ingrédient</button><button>Créer la recette</button></form></section>
   <section class="panel"><h2>Mes recettes</h2>${state.recipes.length ? `<div class="cards">${state.recipes.map((recipe) => { const n = recipeNutrients(recipe, state.foods); return `<article class="recipe-card"><h3>${recipe.name}</h3><p>${recipe.ingredients.map((item) => `${foodName(state, item.foodId)} · ${item.grams} g`).join(', ')}</p><strong>${number(n.kcal)} kcal · ${number(n.protein)} g prot.</strong><button data-cook="${recipe.id}">Cuisiner et ajouter au journal</button></article>`; }).join('')}</div>` : '<p class="empty">Crée une recette pour la retrouver ici.</p>'}</section>`;
 }
+function stockFormDefaults(foodId) {
+  const food = state.foods.find((item) => item.id === foodId);
+  const existing = state.stock.find((item) => item.foodId === foodId);
+  const unit = food?.stockUnit || 'g';
+  const quantity = STOCK_PURCHASE_QUANTITIES[foodId] || (unit === 'unité' ? 1 : 100);
+  return { quantity, minimum: existing?.minimum ?? Math.max(1, Math.round(quantity / 4)), unit };
+}
 function stock() {
+  const initial = stockFormDefaults(state.foods[0]?.id);
   return `<section class="hero"><p>PLACARDS</p><h1>Ce qu’il reste à la maison</h1></section>
-  <section class="panel"><h2>Ajouter au stock</h2><form id="stock-form" class="form-grid"><label>Aliment<select name="foodId">${foodOptions()}</select></label><label>Quantité (g ou unités)<input name="quantity" type="number" min="0" value="100" required /></label><label>Alerte sous (g ou unités)<input name="minimum" type="number" min="0" value="50" required /></label><button>Ajouter</button></form></section>
+  <section class="panel"><h2>Ajouter au stock</h2><form id="stock-form" class="form-grid"><label>Aliment<select name="foodId">${foodOptions()}</select></label><label><span data-stock-quantity-label>Quantité (${initial.unit})</span><input name="quantity" type="number" min="0" value="${initial.quantity}" required /></label><label><span data-stock-minimum-label>Alerte sous (${initial.unit})</span><input name="minimum" type="number" min="0" value="${initial.minimum}" required /></label><button>Ajouter</button></form></section>
   <section class="panel"><h2>Stock actuel</h2>${state.stock.length ? `<div class="stock-list">${state.stock.map((item) => { const food = state.foods.find((entry) => entry.id === item.foodId); const unit = food?.stockUnit || 'g'; const step = unit === 'unité' ? 1 : 50; return `<article class="${Number(item.quantity) <= Number(item.minimum) ? 'low' : ''}"><div><b>${foodName(state, item.foodId)}</b><span>${item.quantity} ${unit}${item.quantity > 1 && unit === 'unité' ? 's' : ''} disponibles · seuil ${item.minimum} ${unit}${item.minimum > 1 && unit === 'unité' ? 's' : ''}</span></div><div><button class="small" data-adjust-stock="${item.id}" data-change="-${step}">− ${step} ${unit}</button><button class="small" data-adjust-stock="${item.id}" data-change="${step}">+ ${step} ${unit}</button></div></article>`; }).join('')}</div>` : '<p class="empty">Le stock est vide.</p>'}</section>`;
 }
 function priceMeasure(name) {
@@ -271,6 +280,7 @@ function bind() {
   app.querySelector('#recipe-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodIds = data.getAll('foodId'); const grams = data.getAll('grams'); state.recipes.unshift({ id: crypto.randomUUID(), name: data.get('name'), ingredients: foodIds.map((foodId, index) => ({ foodId, grams: Number(grams[index]) })) }); save(); notify('Recette créée.'); });
   app.querySelectorAll('[data-cook]').forEach((button) => button.addEventListener('click', () => { const recipe = state.recipes.find((item) => item.id === button.dataset.cook); const n = recipeNutrients(recipe, state.foods); state.logs.unshift({ id: crypto.randomUUID(), date: today(), meal: 'Repas', name: recipe.name, grams: recipe.ingredients.reduce((sum, item) => sum + item.grams, 0), ...n }); recipe.ingredients.forEach((ingredient) => { const stock = state.stock.find((item) => item.foodId === ingredient.foodId); if (stock) stock.quantity = Math.max(0, Number(stock.quantity) - Number(ingredient.grams)); }); save(); view = 'journal'; notify('Recette ajoutée et stock mis à jour.'); }));
   app.querySelector('#stock-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const existing = state.stock.find((item) => item.foodId === data.get('foodId')); if (existing) { existing.quantity += Number(data.get('quantity')); existing.minimum = Number(data.get('minimum')); } else { state.stock.push({ id: crypto.randomUUID(), foodId: data.get('foodId'), quantity: Number(data.get('quantity')), minimum: Number(data.get('minimum')) }); } save(); notify('Stock mis à jour.'); });
+  app.querySelector('#stock-form select[name="foodId"]')?.addEventListener('change', updateStockFormDefaults);
   app.querySelectorAll('[data-adjust-stock]').forEach((button) => button.addEventListener('click', () => { const item = state.stock.find((stock) => stock.id === button.dataset.adjustStock); item.quantity = Math.max(0, Number(item.quantity) + Number(button.dataset.change)); save(); render(); }));
   app.querySelector('#shopping-form')?.addEventListener('submit', (event) => { event.preventDefault(); const name = new FormData(event.target).get('name').trim(); state.shopping.push({ id: crypto.randomUUID(), name, done: false }); save(); notify('Article ajouté.'); });
   app.querySelectorAll('[data-check-shopping]').forEach((input) => input.addEventListener('change', () => { const linkedName = input.dataset.linkedPrice; if (linkedName) { state.shoppingSelection = state.shoppingSelection || []; state.shoppingQuantities = state.shoppingQuantities || {}; if (input.checked && !state.shoppingQuantities[linkedName]) state.shoppingQuantities[linkedName] = purchaseSpec(linkedName).quantity; state.shoppingSelection = input.checked ? [...new Set([...state.shoppingSelection, linkedName])] : state.shoppingSelection.filter((name) => name !== linkedName); save(); render(); return; } const item = state.shopping.find((entry) => entry.id === input.dataset.checkShopping); if (item) { item.done = input.checked; save(); } }));
@@ -286,6 +296,15 @@ function updateFoodPreview() {
   const preview = app.querySelector('#food-preview');
   if (!form || !preview) return;
   preview.outerHTML = foodPreview(form.elements.foodId.value, form.elements.grams.value);
+}
+
+function updateStockFormDefaults(event) {
+  const form = event.currentTarget.form;
+  const defaults = stockFormDefaults(event.currentTarget.value);
+  form.elements.quantity.value = defaults.quantity;
+  form.elements.minimum.value = defaults.minimum;
+  form.querySelector('[data-stock-quantity-label]').textContent = `Quantité (${defaults.unit})`;
+  form.querySelector('[data-stock-minimum-label]').textContent = `Alerte sous (${defaults.unit})`;
 }
 
 function updateFoodSearch(event) {
@@ -307,5 +326,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-38');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-39');
 render();
