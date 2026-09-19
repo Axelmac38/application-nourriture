@@ -2,7 +2,7 @@ import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutri
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
-const SAMPLE_RECIPES_VERSION = 'sample-recipes-20260919';
+const SAMPLE_RECIPES_VERSION = 'sample-recipes-20260920-v2';
 const STOCK_VERSION = 'stock-axel-20260919-v4';
 const PRICE_HISTORY_VERSION = 'lidl-prices-20260919-v3';
 const PRICE_RECORDS = [
@@ -92,8 +92,11 @@ function loadState() {
 function sampleRecipes() {
   return [
     { id: 'recipe-carbonara', name: 'Pâtes carbonara', ingredients: [{ foodId: 'pasta', grams: 250 }, { foodId: 'egg', grams: 100 }, { foodId: 'emmental', grams: 30 }] },
-    { id: 'recipe-chicken-rice', name: 'Poulet, riz et avocat', ingredients: [{ foodId: 'chicken', grams: 150 }, { foodId: 'rice', grams: 200 }, { foodId: 'avocado', grams: 50 }] },
-    { id: 'recipe-protein-bowl', name: 'Bol protéiné à la whey', ingredients: [{ foodId: 'oats', grams: 60 }, { foodId: 'whey', grams: 30 }, { foodId: 'banana', grams: 100 }, { foodId: 'greek-yogurt', grams: 150 }] }
+    { id: 'recipe-omelette-emmental', name: 'Omelette à l’emmental', ingredients: [{ foodId: 'egg', grams: 150 }, { foodId: 'emmental', grams: 30 }] },
+    { id: 'recipe-oat-pancakes', name: 'Pancakes avoine', ingredients: [{ foodId: 'oats', grams: 60 }, { foodId: 'flour', grams: 40 }, { foodId: 'egg', grams: 50 }] },
+    { id: 'recipe-rice-lentil-salad', name: 'Salade de riz et lentilles', ingredients: [{ foodId: 'rice', grams: 200 }, { foodId: 'lentils-green', grams: 100 }, { foodId: 'mayonnaise', grams: 15 }] },
+    { id: 'recipe-red-lentil-patties', name: 'Galettes de lentilles corail', ingredients: [{ foodId: 'lentils-red', grams: 100 }, { foodId: 'flour', grams: 20 }, { foodId: 'egg', grams: 50 }, { foodId: 'emmental', grams: 20 }] },
+    { id: 'recipe-rice-omelette', name: 'Riz aux œufs et emmental', ingredients: [{ foodId: 'rice', grams: 200 }, { foodId: 'egg', grams: 100 }, { foodId: 'emmental', grams: 20 }] }
   ];
 }
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -420,5 +423,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-53');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-54');
 render();
