@@ -1,10 +1,10 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-22';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-23';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
 const SAMPLE_RECIPES_VERSION = 'sample-recipes-20260919';
 const STOCK_VERSION = 'stock-axel-20260919-v3';
-const PRICE_HISTORY_VERSION = 'lidl-prices-20260919-v2';
+const PRICE_HISTORY_VERSION = 'lidl-prices-20260919-v3';
 const PRICE_RECORDS = [
   ['Flocons d’avoine', '2025-11-26', 0.85, 3], ['Flocons d’avoine', '2026-05-23', 0.79, 2],
   ['Lentilles vertes', '2025-11-26', 1.63, 3], ['Coquillettes 1 kg', '2025-11-26', 1.05, 2], ['Coquillettes 1 kg', '2025-12-01', 1.03, 3], ['Coquillettes 1 kg', '2026-01-30', 0.97, 3],
@@ -20,6 +20,12 @@ const PRICE_RECORDS = [
   ['Jus d’orange', '2026-01-30', 2.78, 1], ['Ail 250 g', '2026-01-30', 1.89, 1],
   ['Salade de céleri', '2026-01-30', 1.50, 1], ['Sauce tomate variée', '2026-01-30', 1.38, 1],
   ['Citron 500 g', '2026-01-30', 0.99, 1], ['Moutarde de Dijon', '2026-01-30', 0.84, 1],
+  ['Colossus Energy Drink', '2026-09-11', 0.69, 2], ['Sac isotherme', '2026-09-11', 1.39, 1],
+  ['Banane 4 fruits', '2026-09-11', 0.79, 1], ['Salade de concombres', '2026-09-11', 2.49, 1],
+  ['Salade de céleri', '2026-09-11', 1.58, 1], ['Sandwich poulet', '2026-09-11', 1.15, 1],
+  ['Sandwich jambon', '2026-09-11', 1.15, 1], ['Saucisse de Toulouse', '2026-09-11', 5.89, 1],
+  ['Crème fraîche épaisse', '2026-09-11', 1.72, 1], ['Allumettes de porc', '2026-09-11', 1.69, 1],
+  ['Oignon rouge', '2026-09-11', 0.95, 1],
   ['Filtre à eau classe A', '2026-03-16', 4.40, 1]
 ].map(([name, date, price, quantity]) => ({ name, date, price, quantity }));
 const NON_FOOD_ITEMS = ['Filtre à eau classe A'];
@@ -238,5 +244,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-22');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-23');
 render();
