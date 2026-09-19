@@ -42,12 +42,12 @@ export const emptyState = () => ({
   logs: [],
   recipes: [],
   stock: [
-    { id: 'stock-rice', foodId: 'rice', quantity: 1625, minimum: 200 },
-    { id: 'stock-pasta', foodId: 'pasta', quantity: 1000, minimum: 200 },
+    { id: 'stock-rice', foodId: 'rice', quantity: 1625, minimum: 1000 },
+    { id: 'stock-pasta', foodId: 'pasta', quantity: 1000, minimum: 2000 },
     { id: 'stock-lentils-red', foodId: 'lentils-red', quantity: 1350, minimum: 450 },
     { id: 'stock-lentils-green', foodId: 'lentils-green', quantity: 500, minimum: 250 },
-    { id: 'stock-oats', foodId: 'oats', quantity: 500, minimum: 250 },
-    { id: 'stock-flour', foodId: 'flour', quantity: 2000, minimum: 500 },
+    { id: 'stock-oats', foodId: 'oats', quantity: 500, minimum: 500 },
+    { id: 'stock-flour', foodId: 'flour', quantity: 2000, minimum: 1000 },
     { id: 'stock-emmental', foodId: 'emmental', quantity: 500, minimum: 100 }
   ],
   shopping: []
