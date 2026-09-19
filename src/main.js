@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-7';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-8';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -51,7 +51,7 @@ function foodPreview(foodId, grams) {
   const addition = nutrientsFor(food, grams);
   const current = totalToday();
   const macroEnergy = addition.protein * 4 + addition.carbs * 4 + addition.fat * 9;
-  const macroShare = macroEnergy ? { protein: number((addition.protein * 4 / macroEnergy) * 100), fat: number((addition.fat * 9 / macroEnergy) * 100), carbs: number((addition.carbs * 4 / macroEnergy) * 100) } : null;
+  const macroShare = macroEnergy ? { protein: Math.round((addition.protein * 4 / macroEnergy) * 100), fat: Math.round((addition.fat * 9 / macroEnergy) * 100), carbs: Math.round((addition.carbs * 4 / macroEnergy) * 100) } : null;
   const labels = { kcal: ['Énergie', ' kcal'], protein: ['Protéines', ' g'], carbs: ['Glucides', ' g'], fat: ['Lipides', ' g'] };
   const charts = Object.entries(labels).map(([key, [label, suffix]]) => {
     const target = Number(state.targets[key]);
@@ -148,5 +148,5 @@ function updateFoodPreview() {
   preview.outerHTML = foodPreview(form.elements.foodId.value, form.elements.grams.value);
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-7');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-8');
 render();
