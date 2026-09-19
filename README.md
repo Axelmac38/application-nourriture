@@ -6,7 +6,7 @@ Première version mobile installable dans un navigateur, indépendante de MyFitn
 
 - journal alimentaire quotidien avec calories, protéines, glucides et lipides ;
 - objectifs facultatifs et configurables ;
-- aperçu de l’effet d’un aliment sur les objectifs avant son ajout, sous forme de camemberts de progression ;
+- aperçu de l’effet d’un aliment sur les objectifs avant son ajout, sous forme de camemberts de progression pouvant signaler un dépassement ;
 - panneau d’objectifs centré, défilable et doté d’un enregistrement visible.
 - recettes à plusieurs ingrédients, enregistrables dans le journal ;
 - déduction des ingrédients présents dans le stock ;
