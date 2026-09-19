@@ -1,7 +1,8 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-11';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-12';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
+const SAMPLE_RECIPES_VERSION = 'sample-recipes-20260919';
 const app = document.querySelector('#app');
 let state = loadState();
 let view = 'journal';
@@ -13,12 +14,19 @@ function loadState() {
     if (!saved?.foods) {
       const next = emptyState();
       next.logs = testMealLogs(next.foods);
+      next.recipes = sampleRecipes();
       next.testMealVersion = TEST_MEAL_VERSION;
+      next.sampleRecipesVersion = SAMPLE_RECIPES_VERSION;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     }
     const knownIds = new Set(saved.foods.map((food) => food.id));
     const next = { ...saved, foods: [...saved.foods, ...SAMPLE_FOODS.filter((food) => !knownIds.has(food.id))] };
+    if (next.sampleRecipesVersion !== SAMPLE_RECIPES_VERSION) {
+      next.recipes = [...(next.recipes || []), ...sampleRecipes().filter((recipe) => !(next.recipes || []).some((item) => item.id === recipe.id))];
+      next.sampleRecipesVersion = SAMPLE_RECIPES_VERSION;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    }
     const currentWhey = next.foods.find((food) => food.id === 'whey');
     const packageWhey = SAMPLE_FOODS.find((food) => food.id === 'whey');
     if (currentWhey?.name.includes('valeur générique')) Object.assign(currentWhey, packageWhey);
@@ -29,6 +37,13 @@ function loadState() {
     }
     return next;
   } catch { return emptyState(); }
+}
+function sampleRecipes() {
+  return [
+    { id: 'recipe-carbonara', name: 'Pâtes carbonara', ingredients: [{ foodId: 'pasta', grams: 250 }, { foodId: 'egg', grams: 100 }, { foodId: 'emmental', grams: 30 }] },
+    { id: 'recipe-chicken-rice', name: 'Poulet, riz et avocat', ingredients: [{ foodId: 'chicken', grams: 150 }, { foodId: 'rice', grams: 200 }, { foodId: 'avocado', grams: 50 }] },
+    { id: 'recipe-protein-bowl', name: 'Bol protéiné à la whey', ingredients: [{ foodId: 'oats', grams: 60 }, { foodId: 'whey', grams: 30 }, { foodId: 'banana', grams: 100 }, { foodId: 'greek-yogurt', grams: 150 }] }
+  ];
 }
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -172,5 +187,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-11');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-12');
 render();
