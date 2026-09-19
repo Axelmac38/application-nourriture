@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-30';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-31';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -190,17 +190,40 @@ function priceProductCard(name, history, selected) {
   const latest = records.at(-1);
   return `<article class="tracked-product"><label class="product-pick"><input type="checkbox" data-select-price="${name}" ${selected.includes(name) ? 'checked' : ''}/><span><b>${name}</b><small>Lidl · ${latest.price.toFixed(2)} € · ${records.length} relevé${records.length > 1 ? 's' : ''}</small></span></label><button class="product-toggle" data-price-product="${name}">Voir l’évolution <strong>⌄</strong></button><div class="price-details" hidden data-price-details="${name}"><div class="price-store">Prix relevés chez Lidl · Saint-Martin-d’Hères</div>${priceChart(records)}<div class="price-history">${records.map((item) => `<span>${item.date} · ${item.price.toFixed(2)} €${item.quantity > 1 ? ` · ${item.quantity} unités` : ''}</span>`).join('')}</div><button class="small danger" data-remove-price-product="${name}">Supprimer ce produit</button></div></article>`;
 }
+function purchaseSpec(name) {
+  const specs = {
+    'Flocons d’avoine': ['oats', 1000], 'Coquillettes 1 kg': ['pasta', 1000], 'Lentilles vertes': ['lentils-green', 500],
+    'Fromage blanc': ['fromage-blanc', 1000], 'Emmental râpé': ['emmental', 250], 'Mayonnaise': ['mayonnaise', 500],
+    'Banane 4 fruits': ['banana', 500], 'Citron 500 g': ['clementine', 500], 'Ail 250 g': ['carrot', 250],
+    'Jus d’orange': [null, 1000], 'Pain de mie': ['wholewheat-bread', 500], 'Crème fraîche épaisse': [null, 200]
+  };
+  const [foodId = null, quantity = 1] = specs[name] || [];
+  return { foodId, quantity };
+}
+function selectedShoppingItems(history) {
+  return (state.shoppingSelection || []).map((name) => {
+    const records = history.filter((item) => item.name === name).sort((a, b) => a.date.localeCompare(b.date));
+    const latest = records.at(-1);
+    const spec = purchaseSpec(name);
+    const quantity = Number(state.shoppingQuantities?.[name] || spec.quantity);
+    const food = state.foods.find((item) => item.id === spec.foodId);
+    const nutrients = food ? nutrientsFor(food, quantity) : { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+    return { name, latest, quantity, baseQuantity: spec.quantity, food, nutrients };
+  });
+}
 function shopping() {
   const low = lowStock(state);
   const items = [...low.map((item) => ({ id: item.id, name: foodName(state, item.foodId), suggested: Math.max(0, Number(item.minimum) - Number(item.quantity)) })), ...state.shopping];
   const history = state.priceRecords || [];
   const products = [...new Set(history.map((item) => item.name))].sort((a, b) => a.localeCompare(b, 'fr'));
   const selected = state.shoppingSelection || [];
-  const total = products.filter((name) => selected.includes(name)).reduce((sum, name) => { const latest = history.filter((item) => item.name === name).sort((a, b) => a.date.localeCompare(b.date)).at(-1); return sum + (latest?.price || 0); }, 0);
+  const selectedItems = selectedShoppingItems(history);
+  const total = selectedItems.reduce((sum, item) => sum + (item.latest?.price || 0) * (item.quantity / item.baseQuantity), 0);
+  const nutritionTotal = addNutrients(selectedItems.map((item) => item.nutrients));
   const categories = ['Fruits et légumes', 'Féculents et céréales', 'Produits laitiers', 'Viandes et charcuterie', 'Sauces et condiments', 'Boissons et snacking', 'Non alimentaire'];
   return `<section class="hero"><p>LISTE DE COURSES</p><h1>À acheter quand tu veux</h1><span>Propositions fondées sur les seuils de stock.</span></section>
   <section class="panel"><h2>Ajouter un article</h2><form id="shopping-form" class="inline-form"><input name="name" required placeholder="Ex. œufs" /><button>Ajouter</button></form></section>
-  <section class="panel"><h2>Mon panier</h2>${items.length ? `<div class="shopping-list">${items.map((item) => `<label><input type="checkbox" data-check-shopping="${item.id}" ${item.done ? 'checked' : ''}/><span>${item.name}${item.suggested ? ` · au moins ${item.suggested} g` : ''}</span>${item.id.startsWith('stock-') ? '<em>stock faible</em>' : '<button class="icon" data-remove-shopping="' + item.id + '">×</button>'}</label>`).join('')}</div>` : ''}<h3 class="subheading">Produits suivis chez Lidl</h3>${categories.map((category) => { const names = products.filter((name) => priceCategory(name) === category); return names.length ? `<details class="product-category" open><summary>${category} <small>${names.length}</small></summary>${names.map((name) => priceProductCard(name, history, selected)).join('')}</details>` : ''; }).join('') || '<p class="empty">Aucun produit suivi.</p>'}<div class="cart-total"><b>Total estimé</b><strong>${total.toFixed(2)} €</strong></div></section>`;
+  <section class="panel"><h2>Mon panier</h2>${items.length ? `<div class="shopping-list">${items.map((item) => `<label><input type="checkbox" data-check-shopping="${item.id}" ${item.done ? 'checked' : ''}/><span>${item.name}${item.suggested ? ` · au moins ${item.suggested} g` : ''}</span>${item.id.startsWith('stock-') ? '<em>stock faible</em>' : '<button class="icon" data-remove-shopping="' + item.id + '">×</button>'}</label>`).join('')}</div>` : ''}<h3 class="subheading">Produits suivis chez Lidl</h3>${categories.map((category) => { const names = products.filter((name) => priceCategory(name) === category); return names.length ? `<details class="product-category" open><summary>${category} <small>${names.length}</small></summary>${names.map((name) => priceProductCard(name, history, selected)).join('')}</details>` : ''; }).join('') || '<p class="empty">Aucun produit suivi.</p>'}${selectedItems.length ? `<section class="shopping-summary"><h3>Liste de courses</h3>${selectedItems.map((item) => `<article><div><b>${item.name}</b><small>${item.food ? 'Aliment relié au catalogue' : 'Prix disponible, composition à renseigner'}</small></div><label>Quantité (g)<input type="number" min="1" step="1" value="${item.quantity}" data-shopping-quantity="${item.name}" /></label><strong>${((item.latest?.price || 0) * item.quantity / item.baseQuantity).toFixed(2)} €</strong></article>`).join('')}<div class="cart-total"><b>Total estimé</b><strong>${total.toFixed(2)} €</strong></div><div class="cart-macros"><span>${number(nutritionTotal.kcal)} kcal</span><span>${number(nutritionTotal.protein)} g prot.</span><span>${number(nutritionTotal.carbs)} g gluc.</span><span>${number(nutritionTotal.fat)} g lip.</span></div></section>` : ''}</section>`;
 }
 function targets() {
   return `<dialog open class="target-dialog"><form id="targets-form"><button class="close" type="button" data-close-targets aria-label="Fermer">×</button><h2>Objectifs quotidiens</h2><p>Facultatifs : ils servent seulement à afficher des pourcentages et ne constituent pas un conseil médical.</p><div class="target-fields">${[['kcal','Calories (kcal)'],['protein','Protéines (g)'],['carbs','Glucides (g)'],['fat','Lipides (g)']].map(([key,label]) => `<label>${label}<input type="number" min="0" name="${key}" value="${state.targets[key]}" /></label>`).join('')}</div><button class="save-targets">Enregistrer les objectifs</button></form></dialog>`;
@@ -231,7 +254,8 @@ function bind() {
   app.querySelectorAll('[data-remove-shopping]').forEach((button) => button.addEventListener('click', () => { state.shopping = state.shopping.filter((item) => item.id !== button.dataset.removeShopping); save(); render(); }));
   app.querySelectorAll('[data-price-product]').forEach((button) => button.addEventListener('click', () => { const details = app.querySelector(`[data-price-details="${CSS.escape(button.dataset.priceProduct)}"]`); if (details) details.hidden = !details.hidden; }));
   app.querySelectorAll('[data-remove-price-product]').forEach((button) => button.addEventListener('click', () => { state.priceRecords = state.priceRecords.filter((item) => item.name !== button.dataset.removePriceProduct); save(); render(); }));
-  app.querySelectorAll('[data-select-price]').forEach((input) => input.addEventListener('change', () => { state.shoppingSelection = state.shoppingSelection || []; state.shoppingSelection = input.checked ? [...new Set([...state.shoppingSelection, input.dataset.selectPrice])] : state.shoppingSelection.filter((name) => name !== input.dataset.selectPrice); save(); render(); }));
+  app.querySelectorAll('[data-select-price]').forEach((input) => input.addEventListener('change', () => { state.shoppingSelection = state.shoppingSelection || []; state.shoppingQuantities = state.shoppingQuantities || {}; if (input.checked && !state.shoppingQuantities[input.dataset.selectPrice]) state.shoppingQuantities[input.dataset.selectPrice] = purchaseSpec(input.dataset.selectPrice).quantity; state.shoppingSelection = input.checked ? [...new Set([...state.shoppingSelection, input.dataset.selectPrice])] : state.shoppingSelection.filter((name) => name !== input.dataset.selectPrice); save(); render(); }));
+  app.querySelectorAll('[data-shopping-quantity]').forEach((input) => input.addEventListener('change', () => { state.shoppingQuantities = state.shoppingQuantities || {}; state.shoppingQuantities[input.dataset.shoppingQuantity] = Math.max(1, Number(input.value) || 1); save(); render(); }));
   app.querySelectorAll('[data-price-food]').forEach((form) => form.addEventListener('submit', (event) => { event.preventDefault(); const food = state.foods.find((item) => item.id === form.dataset.priceFood); const price = Number(new FormData(form).get('price')); if (!food || !Number.isFinite(price) || price < 0) return; food.price = price; food.priceHistory = [...(food.priceHistory || []), { date: today(), price }]; save(); notify('Prix mis à jour.'); }));
 }
 function updateFoodPreview() {
@@ -260,5 +284,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-30');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-31');
 render();
