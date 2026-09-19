@@ -134,6 +134,13 @@ function foodAmountLabel(foodId, grams, fallbackName = null) {
   }
   return `${fallbackName || foodName(state, foodId)} · ${grams} g`;
 }
+function removeFromStock(foodId, grams) {
+  const food = state.foods.find((item) => item.id === foodId);
+  const stock = state.stock.find((item) => item.foodId === foodId);
+  if (!food || !stock) return;
+  const consumed = food.stockUnit === 'unité' ? Number(grams) / 50 : Number(grams);
+  stock.quantity = Math.max(0, Number(stock.quantity) - consumed);
+}
 
 function foodSearchOptions() {
   return state.foods.map((food) => `<option value="${food.name}" label="${food.category || 'Autres'}"></option>`).join('');
@@ -186,7 +193,7 @@ function journal() {
   return `<section class="hero"><p>AUJOURD’HUI</p><h1>Ton journal alimentaire</h1><span>${new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</span></section>
   <section class="metrics">${targetCard('Énergie', 'kcal', totals.kcal, ' kcal')}${targetCard('Protéines', 'protein', totals.protein, ' g')}${targetCard('Glucides', 'carbs', totals.carbs, ' g')}${targetCard('Lipides', 'fat', totals.fat, ' g')}</section>
   <button class="goals-button" data-action="open-targets"><span>Objectifs quotidiens</span><b>Définir ou modifier →</b></button>
-  <section class="panel food-composer"><div class="section-title"><h2>Ajouter un aliment</h2><button class="link" type="button" data-toggle-food-composer aria-label="${journalComposerOpen ? 'Replier l’ajout d’aliment' : 'Afficher l’ajout d’aliment'}" title="${journalComposerOpen ? 'Replier' : 'Afficher'}">${journalComposerOpen ? '−' : '+'}</button></div>${journalComposerOpen ? `<form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Aliment<input name="foodSearch" placeholder="Rechercher dans la liste…" autocomplete="off" /><select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}` : ''}</section>
+  <section class="panel food-composer"><div class="section-title"><h2>Ajouter un aliment</h2><button class="link" type="button" data-toggle-food-composer aria-label="${journalComposerOpen ? 'Replier l’ajout d’aliment' : 'Afficher l’ajout d’aliment'}" title="${journalComposerOpen ? 'Replier' : 'Afficher'}">${journalComposerOpen ? '−' : '+'}</button></div>${journalComposerOpen ? `<form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Aliment<input name="foodSearch" placeholder="Rechercher dans la liste…" autocomplete="off" /><select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><label class="checkbox-field"><input name="fromStock" type="checkbox" /> Prélevé du stock</label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}` : ''}</section>
   <section class="panel"><h2>Repas enregistrés</h2>${logs.length ? `<div class="log-list">${logs.map((entry) => `<article data-log-row="${entry.id}" title="Double-cliquer pour modifier"><div><b>${entry.meal}</b><span>${foodAmountLabel(entry.foodId, entry.grams, entry.name)}</span></div><strong>${entry.kcal} kcal</strong><div class="log-actions"><button class="small" data-edit-log="${entry.id}">Modifier</button><button class="icon" data-remove-log="${entry.id}" aria-label="Supprimer">×</button></div></article>`).join('')}</div>` : '<p class="empty">Aucun repas enregistré pour aujourd’hui.</p>'}</section>`;
 }
 function recipes() {
@@ -323,7 +330,7 @@ function render() {
 function bind() {
   app.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; render(); }));
   app.querySelector('.food-composer .section-title')?.addEventListener('click', () => { journalComposerOpen = !journalComposerOpen; render(); });
-  app.querySelector('#log-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); addLog(data.get('foodId'), Number(data.get('grams')), data.get('meal')); save(); notify('Aliment ajouté au journal.'); });
+  app.querySelector('#log-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodId = data.get('foodId'); const grams = Number(data.get('grams')); addLog(foodId, grams, data.get('meal')); if (data.get('fromStock')) removeFromStock(foodId, grams); save(); notify(data.get('fromStock') ? 'Aliment ajouté et stock diminué.' : 'Aliment ajouté au journal.'); });
   app.querySelector('#log-form input[name="foodSearch"]')?.addEventListener('input', updateFoodSearch);
   app.querySelector('#log-form select[name="foodId"]')?.addEventListener('change', updateFoodPreview);
   app.querySelector('#log-form input[name="grams"]')?.addEventListener('input', updateFoodPreview);
@@ -438,5 +445,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-59');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-60');
 render();
