@@ -1,10 +1,10 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-21';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-22';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
 const SAMPLE_RECIPES_VERSION = 'sample-recipes-20260919';
 const STOCK_VERSION = 'stock-axel-20260919-v3';
-const PRICE_HISTORY_VERSION = 'lidl-prices-20260919-v1';
+const PRICE_HISTORY_VERSION = 'lidl-prices-20260919-v2';
 const PRICE_RECORDS = [
   ['Flocons d’avoine', '2025-11-26', 0.85, 3], ['Flocons d’avoine', '2026-05-23', 0.79, 2],
   ['Lentilles vertes', '2025-11-26', 1.63, 3], ['Coquillettes 1 kg', '2025-11-26', 1.05, 2], ['Coquillettes 1 kg', '2025-12-01', 1.03, 3], ['Coquillettes 1 kg', '2026-01-30', 0.97, 3],
@@ -13,6 +13,13 @@ const PRICE_RECORDS = [
   ['Emmental râpé', '2025-11-26', 3.74, 1], ['Emmental râpé', '2026-01-30', 1.22, 1],
   ['Pain de mie', '2025-11-26', 1.51, 1], ['Pain de mie', '2026-01-30', 1.48, 1],
   ['Crème fraîche épaisse', '2025-11-26', 1.72, 2], ['Crème fraîche épaisse', '2026-01-30', 1.72, 1],
+  ['Pesto rosso', '2025-11-26', 1.33, 2], ['Pesto genovese', '2025-11-26', 1.33, 1],
+  ['Côtes de porc échine', '2025-11-26', 5.29, 1], ['Lardons nature', '2025-11-26', 1.20, 1],
+  ['Chipolatas / saucisses de Toulouse', '2025-11-26', 3.99, 1], ['Fromage bleu 55 % MG', '2025-11-26', 2.29, 1],
+  ['Kaki', '2025-11-26', 0.69, 4], ['Cuisses de poulet blanc', '2026-01-30', 6.93, 1],
+  ['Jus d’orange', '2026-01-30', 2.78, 1], ['Ail 250 g', '2026-01-30', 1.89, 1],
+  ['Salade de céleri', '2026-01-30', 1.50, 1], ['Sauce tomate variée', '2026-01-30', 1.38, 1],
+  ['Citron 500 g', '2026-01-30', 0.99, 1], ['Moutarde de Dijon', '2026-01-30', 0.84, 1],
   ['Filtre à eau classe A', '2026-03-16', 4.40, 1]
 ].map(([name, date, price, quantity]) => ({ name, date, price, quantity }));
 const NON_FOOD_ITEMS = ['Filtre à eau classe A'];
@@ -231,5 +238,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-21');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-22');
 render();
