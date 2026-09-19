@@ -2,3 +2,7 @@
 .ingredient-line{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin:8px 0}
 .ingredient-line label{display:grid;gap:5px;color:#597169;font-size:.75rem}
 .add-line{background:#eaf4ed;color:#18745b;margin:3px 6px 0 0}
+.food-preview{margin-top:14px;padding:14px;border:1px solid #d8eadc;border-radius:13px;background:#f4faf5}
+.food-preview h3{margin:0 0 5px;font-size:.9rem}.food-preview p{margin:4px 0;color:#47675b;font-size:.82rem}
+.food-preview ul{list-style:none;margin:10px 0;padding:0;display:grid;gap:7px}.food-preview li{display:grid;grid-template-columns:90px 1fr;column-gap:8px;font-size:.78rem}.food-preview li b{grid-row:span 2}.food-preview li small{color:#667d72}
+.test-button{width:100%;margin-top:12px;background:#fff;color:#18745b;border:1px dashed #8bbba0;font-size:.76rem}

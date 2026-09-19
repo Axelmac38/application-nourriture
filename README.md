@@ -6,12 +6,13 @@ Première version mobile installable dans un navigateur, indépendante de MyFitn
 
 - journal alimentaire quotidien avec calories, protéines, glucides et lipides ;
 - objectifs facultatifs et configurables ;
+- aperçu de l’effet d’un aliment sur les objectifs avant son ajout ;
 - recettes à plusieurs ingrédients, enregistrables dans le journal ;
 - déduction des ingrédients présents dans le stock ;
 - seuils de stock et liste de courses proposée ;
 - articles de courses ajoutés manuellement.
 
-Le catalogue initial comporte des aliments génériques courants ; leurs valeurs sont des moyennes indicatives pour 100 g et ne remplacent jamais l’étiquette d’un produit précis. Certains noms ont été identifiés dans la liste hors ligne de l’APK de référence, mais aucune base propriétaire complète n’est importée. L’application ne fournit aucun objectif nutritionnel personnel ni conseil médical.
+Le catalogue initial comporte des aliments génériques courants, dont une whey à valeur générique. Leurs valeurs sont des moyennes indicatives pour 100 g et ne remplacent jamais l’étiquette d’un produit précis : pour la whey, saisir les valeurs du paquet est indispensable avant toute comparaison fiable. Certains noms ont été identifiés dans la liste hors ligne de l’APK de référence, mais aucune base propriétaire complète n’est importée. L’application ne fournit aucun objectif nutritionnel personnel ni conseil médical.
 
 ## Lancer localement
 

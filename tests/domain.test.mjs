@@ -9,6 +9,12 @@ test('inclut une sélection de fruits, protéines, légumes et produits laitiers
   assert.ok(SAMPLE_FOODS.some((food) => food.id === 'greek-yogurt'));
 });
 
+test('signale une whey générique à vérifier sur le produit réel', () => {
+  const whey = SAMPLE_FOODS.find((food) => food.id === 'whey');
+  assert.equal(whey.protein, 80);
+  assert.match(whey.name, /à vérifier/);
+});
+
 test('calcule les nutriments au prorata', () => {
   assert.deepEqual(nutrientsFor({ kcal: 100, protein: 10, carbs: 20, fat: 5 }, 150), { kcal: 150, protein: 15, carbs: 30, fat: 7.5 });
 });
