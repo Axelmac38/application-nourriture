@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-10';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-11';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -98,7 +98,7 @@ function journal() {
   <section class="metrics">${targetCard('Énergie', 'kcal', totals.kcal, ' kcal')}${targetCard('Protéines', 'protein', totals.protein, ' g')}${targetCard('Glucides', 'carbs', totals.carbs, ' g')}${targetCard('Lipides', 'fat', totals.fat, ' g')}</section>
   <button class="goals-button" data-action="open-targets"><span>Objectifs quotidiens</span><b>Définir ou modifier →</b></button>
   <section class="panel"><h2>Ajouter un aliment</h2>
-  <form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Rechercher un aliment<input name="foodSearch" list="food-search-options" placeholder="Nom de l’aliment" autocomplete="off" value="${state.foods[0]?.name || ''}" required /><datalist id="food-search-options">${foodSearchOptions()}</datalist><input name="foodId" type="hidden" value="${state.foods[0]?.id || ''}" /></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}</section>
+  <form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Aliment<input name="foodSearch" placeholder="Rechercher dans la liste…" autocomplete="off" /><select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}</section>
   <section class="panel"><h2>Repas enregistrés</h2>${logs.length ? `<div class="log-list">${logs.map((entry) => `<article><div><b>${entry.meal}</b><span>${entry.name} · ${entry.grams} g</span></div><strong>${entry.kcal} kcal</strong><button class="icon" data-remove-log="${entry.id}" aria-label="Supprimer">×</button></article>`).join('')}</div>` : '<p class="empty">Aucun repas enregistré pour aujourd’hui.</p>'}</section>`;
 }
 function recipes() {
@@ -133,6 +133,7 @@ function bind() {
   app.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; render(); }));
   app.querySelector('#log-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); addLog(data.get('foodId'), Number(data.get('grams')), data.get('meal')); save(); notify('Aliment ajouté au journal.'); });
   app.querySelector('#log-form input[name="foodSearch"]')?.addEventListener('input', updateFoodSearch);
+  app.querySelector('#log-form select[name="foodId"]')?.addEventListener('change', updateFoodPreview);
   app.querySelector('#log-form input[name="grams"]')?.addEventListener('input', updateFoodPreview);
   app.querySelectorAll('[data-remove-log]').forEach((button) => button.addEventListener('click', () => { state.logs = state.logs.filter((item) => item.id !== button.dataset.removeLog); save(); render(); }));
   app.querySelector('[data-action="open-targets"]')?.addEventListener('click', () => { app.insertAdjacentHTML('beforeend', targets()); bindTargets(); });
@@ -154,10 +155,22 @@ function updateFoodPreview() {
 
 function updateFoodSearch(event) {
   const form = event.currentTarget.form;
-  const selected = state.foods.find((food) => food.name === event.currentTarget.value);
-  form.elements.foodId.value = selected?.id || '';
+  const query = event.currentTarget.value.trim().toLocaleLowerCase('fr');
+  const select = form.elements.foodId;
+  const currentId = select.value;
+  select.innerHTML = foodOptions();
+  [...select.options].forEach((option) => {
+    const food = state.foods.find((item) => item.id === option.value);
+    const matches = !query || food?.name.toLocaleLowerCase('fr').includes(query);
+    option.hidden = !matches;
+  });
+  if ([...select.options].some((option) => option.value === currentId && !option.hidden)) select.value = currentId;
+  else {
+    const firstVisible = [...select.options].find((option) => !option.hidden);
+    if (firstVisible) select.value = firstVisible.value;
+  }
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-10');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-11');
 render();
