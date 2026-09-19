@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-9';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-10';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -44,6 +44,10 @@ function foodOptions() {
   const groups = new Map();
   state.foods.forEach((food) => groups.set(food.category || 'Autres', [...(groups.get(food.category || 'Autres') || []), food]));
   return [...groups.entries()].map(([category, foods]) => `<optgroup label="${category}">${foods.map((food) => `<option value="${food.id}">${food.name}</option>`).join('')}</optgroup>`).join('');
+}
+
+function foodSearchOptions() {
+  return state.foods.map((food) => `<option value="${food.name}" label="${food.category || 'Autres'}"></option>`).join('');
 }
 function foodPreview(foodId, grams) {
   const food = state.foods.find((item) => item.id === foodId);
@@ -94,7 +98,7 @@ function journal() {
   <section class="metrics">${targetCard('Énergie', 'kcal', totals.kcal, ' kcal')}${targetCard('Protéines', 'protein', totals.protein, ' g')}${targetCard('Glucides', 'carbs', totals.carbs, ' g')}${targetCard('Lipides', 'fat', totals.fat, ' g')}</section>
   <button class="goals-button" data-action="open-targets"><span>Objectifs quotidiens</span><b>Définir ou modifier →</b></button>
   <section class="panel"><h2>Ajouter un aliment</h2>
-  <form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Aliment<select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}</section>
+  <form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Rechercher un aliment<input name="foodSearch" list="food-search-options" placeholder="Nom de l’aliment" autocomplete="off" value="${state.foods[0]?.name || ''}" required /><datalist id="food-search-options">${foodSearchOptions()}</datalist><input name="foodId" type="hidden" value="${state.foods[0]?.id || ''}" /></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}</section>
   <section class="panel"><h2>Repas enregistrés</h2>${logs.length ? `<div class="log-list">${logs.map((entry) => `<article><div><b>${entry.meal}</b><span>${entry.name} · ${entry.grams} g</span></div><strong>${entry.kcal} kcal</strong><button class="icon" data-remove-log="${entry.id}" aria-label="Supprimer">×</button></article>`).join('')}</div>` : '<p class="empty">Aucun repas enregistré pour aujourd’hui.</p>'}</section>`;
 }
 function recipes() {
@@ -128,7 +132,7 @@ function render() {
 function bind() {
   app.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; render(); }));
   app.querySelector('#log-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); addLog(data.get('foodId'), Number(data.get('grams')), data.get('meal')); save(); notify('Aliment ajouté au journal.'); });
-  app.querySelector('#log-form select[name="foodId"]')?.addEventListener('change', updateFoodPreview);
+  app.querySelector('#log-form input[name="foodSearch"]')?.addEventListener('input', updateFoodSearch);
   app.querySelector('#log-form input[name="grams"]')?.addEventListener('input', updateFoodPreview);
   app.querySelectorAll('[data-remove-log]').forEach((button) => button.addEventListener('click', () => { state.logs = state.logs.filter((item) => item.id !== button.dataset.removeLog); save(); render(); }));
   app.querySelector('[data-action="open-targets"]')?.addEventListener('click', () => { app.insertAdjacentHTML('beforeend', targets()); bindTargets(); });
@@ -147,6 +151,13 @@ function updateFoodPreview() {
   if (!form || !preview) return;
   preview.outerHTML = foodPreview(form.elements.foodId.value, form.elements.grams.value);
 }
+
+function updateFoodSearch(event) {
+  const form = event.currentTarget.form;
+  const selected = state.foods.find((food) => food.name === event.currentTarget.value);
+  form.elements.foodId.value = selected?.id || '';
+  updateFoodPreview();
+}
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-9');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-10');
 render();
