@@ -4,6 +4,6 @@ Application mobile à concevoir pour planifier les activités, suivre l’alimen
 
 ## État
 
-Le projet est au stade du cadrage. Le suivi détaillé se trouve dans [`IMPORTANT/Sport Repas/SUIVI_PROJET.md`](../../Mon%20Drive%20(axelm38@gmail.com)/IMPORTANT/Sport%20Repas/SUIVI_PROJET.md) du dépôt de pilotage.
+Le projet est au stade du cadrage. Le suivi détaillé est conservé dans le dépôt de pilotage Codex-work, dans `IMPORTANT/Sport Repas/SUIVI_PROJET.md`.
 
 Les anciens classeurs Excel sont conservés séparément comme références et ne sont pas copiés automatiquement dans ce dépôt.
