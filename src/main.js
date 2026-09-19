@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-34';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-35';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -29,6 +29,11 @@ const PRICE_RECORDS = [
   ['Filtre à eau classe A', '2026-03-16', 4.40, 1]
 ].map(([name, date, price, quantity]) => ({ name, date, price, quantity }));
 const NON_FOOD_ITEMS = ['Filtre à eau classe A'];
+const PRICE_MEASURES = {
+  'Flocons d’avoine': 1000, 'Coquillettes 1 kg': 1000, 'Lentilles vertes': 500,
+  'Fromage blanc': 1000, 'Emmental râpé': 500, 'Mayonnaise': 500,
+  'Ail 250 g': 250, 'Citron 500 g': 500
+};
 const app = document.querySelector('#app');
 let state = loadState();
 let view = 'journal';
@@ -168,13 +173,26 @@ function stock() {
   <section class="panel"><h2>Ajouter au stock</h2><form id="stock-form" class="form-grid"><label>Aliment<select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="quantity" type="number" min="0" value="100" required /></label><label>Alerte sous (g)<input name="minimum" type="number" min="0" value="50" required /></label><button>Ajouter</button></form></section>
   <section class="panel"><h2>Stock actuel</h2>${state.stock.length ? `<div class="stock-list">${state.stock.map((item) => `<article class="${Number(item.quantity) <= Number(item.minimum) ? 'low' : ''}"><div><b>${foodName(state, item.foodId)}</b><span>${item.quantity} g disponibles · seuil ${item.minimum} g</span></div><div><button class="small" data-adjust-stock="${item.id}" data-change="-50">− 50 g</button><button class="small" data-adjust-stock="${item.id}" data-change="50">+ 50 g</button></div></article>`).join('')}</div>` : '<p class="empty">Le stock est vide.</p>'}</section>`;
 }
-function priceChart(records) {
+function priceMeasure(name) {
+  const grams = PRICE_MEASURES[name];
+  return grams ? { quantity: grams, unit: 'g' } : { quantity: 1, unit: 'unité' };
+}
+function normalisedPrice(name, price) {
+  const measure = priceMeasure(name);
+  return measure.unit === 'g' ? price * 1000 / measure.quantity : price;
+}
+function priceLabel(name, price) {
+  const measure = priceMeasure(name);
+  return measure.unit === 'g' ? `${normalisedPrice(name, price).toFixed(2)} €/kg` : `${price.toFixed(2)} €/unité`;
+}
+function priceChart(name, records) {
   if (records.length < 2) return '<p class="empty">Un seul relevé pour le moment.</p>';
-  const prices = records.map((item) => item.price);
+  const prices = records.map((item) => normalisedPrice(name, item.price));
   const min = Math.min(...prices); const max = Math.max(...prices); const span = max - min || 1;
   const coordinates = records.map((item, index) => ({ x: (index / (records.length - 1)) * 228 + 34, y: 92 - ((item.price - min) / span) * 62 }));
   const points = coordinates.map(({ x, y }) => `${x},${y}`).join(' ');
-  return `<div class="price-chart-wrap"><svg class="price-chart" viewBox="0 0 280 120" role="img" aria-label="Évolution du prix"><line x1="34" y1="30" x2="262" y2="30"/><line x1="34" y1="61" x2="262" y2="61"/><line x1="34" y1="92" x2="262" y2="92"/><text x="3" y="34">${max.toFixed(2)} €</text><text x="3" y="96">${min.toFixed(2)} €</text><polyline points="${points}"/>${coordinates.map(({ x, y }) => `<circle cx="${x}" cy="${y}" r="4"/>`).join('')}</svg><small>${records[0].price.toFixed(2)} € → ${records.at(-1).price.toFixed(2)} €</small></div>`;
+  const suffix = priceMeasure(name).unit === 'g' ? ' €/kg' : ' €';
+  return `<div class="price-chart-wrap"><svg class="price-chart" viewBox="0 0 280 120" role="img" aria-label="Évolution du prix"><line x1="34" y1="30" x2="262" y2="30"/><line x1="34" y1="61" x2="262" y2="61"/><line x1="34" y1="92" x2="262" y2="92"/><text x="3" y="34">${max.toFixed(2)}${suffix}</text><text x="3" y="96">${min.toFixed(2)}${suffix}</text><polyline points="${points}"/>${coordinates.map(({ x, y }) => `<circle cx="${x}" cy="${y}" r="4"/>`).join('')}</svg><small>${prices[0].toFixed(2)}${suffix} → ${prices.at(-1).toFixed(2)}${suffix}</small></div>`;
 }
 function priceCategory(name) {
   if (['Sac isotherme'].includes(name)) return 'Non alimentaire';
@@ -188,17 +206,17 @@ function priceCategory(name) {
 function priceProductCard(name, history, selected) {
   const records = history.filter((item) => item.name === name).sort((a, b) => a.date.localeCompare(b.date));
   const latest = records.at(-1);
-  return `<article class="tracked-product"><label class="product-pick"><input type="checkbox" data-select-price="${name}" ${selected.includes(name) ? 'checked' : ''}/><span><b>${name}</b><small>Lidl · ${latest.price.toFixed(2)} € · ${records.length} relevé${records.length > 1 ? 's' : ''}</small></span></label><button class="product-toggle" data-price-product="${name}">Voir l’évolution <strong>⌄</strong></button><div class="price-details" hidden data-price-details="${name}"><div class="price-store">Prix relevés chez Lidl · Saint-Martin-d’Hères</div>${priceChart(records)}<div class="price-history">${records.map((item) => `<span>${item.date} · ${item.price.toFixed(2)} €${item.quantity > 1 ? ` · ${item.quantity} unités` : ''}</span>`).join('')}</div><button class="small danger" data-remove-price-product="${name}">Supprimer ce produit</button></div></article>`;
+  const measure = priceMeasure(name);
+  return `<article class="tracked-product"><label class="product-pick"><input type="checkbox" data-select-price="${name}" ${selected.includes(name) ? 'checked' : ''}/><span><b>${name}</b><small>Lidl · ${priceLabel(name, latest.price)}${measure.unit === 'g' ? ` · paquet ${latest.price.toFixed(2)} €` : ''} · ${records.length} relevé${records.length > 1 ? 's' : ''}</small></span></label><button class="product-toggle" data-price-product="${name}">Voir l’évolution <strong>⌄</strong></button><div class="price-details" hidden data-price-details="${name}"><div class="price-store">Prix relevés chez Lidl · Saint-Martin-d’Hères</div>${priceChart(name, records)}<div class="price-history">${records.map((item) => `<span>${item.date} · ${priceLabel(name, item.price)}${measure.unit === 'g' ? ` · paquet ${item.price.toFixed(2)} €` : ''}${item.quantity > 1 ? ` · ${item.quantity} unités` : ''}</span>`).join('')}</div><button class="small danger" data-remove-price-product="${name}">Supprimer ce produit</button></div></article>`;
 }
 function purchaseSpec(name) {
-  const specs = {
-    'Flocons d’avoine': ['oats', 1000], 'Coquillettes 1 kg': ['pasta-dry', 1000], 'Lentilles vertes': ['lentils-green', 500],
-    'Fromage blanc': ['fromage-blanc', 1000], 'Emmental râpé': ['emmental', 250], 'Mayonnaise': ['mayonnaise', 500],
-    'Banane 4 fruits': ['banana', 500], 'Citron 500 g': ['lemon', 500], 'Ail 250 g': ['garlic', 250],
-    'Jus d’orange': [null, 1000], 'Pain de mie': ['wholewheat-bread', 500], 'Crème fraîche épaisse': [null, 200]
+  const foodIds = {
+    'Flocons d’avoine': 'oats', 'Coquillettes 1 kg': 'pasta-dry', 'Lentilles vertes': 'lentils-green',
+    'Fromage blanc': 'fromage-blanc', 'Emmental râpé': 'emmental', 'Mayonnaise': 'mayonnaise',
+    'Banane 4 fruits': 'banana', 'Citron 500 g': 'lemon', 'Ail 250 g': 'garlic', 'Pain de mie': 'wholewheat-bread'
   };
-  const [foodId = null, quantity = 1] = specs[name] || [];
-  return { foodId, quantity };
+  const measure = priceMeasure(name);
+  return { foodId: foodIds[name] || null, quantity: measure.quantity, unit: measure.unit };
 }
 function priceProductForFoodId(foodId) {
   return { oats: 'Flocons d’avoine', pasta: 'Coquillettes 1 kg', 'lentils-green': 'Lentilles vertes', emmental: 'Emmental râpé', mayonnaise: 'Mayonnaise', 'fromage-blanc': 'Fromage blanc' }[foodId] || null;
@@ -210,8 +228,8 @@ function selectedShoppingItems(history) {
     const spec = purchaseSpec(name);
     const quantity = Number(state.shoppingQuantities?.[name] || spec.quantity);
     const food = state.foods.find((item) => item.id === spec.foodId);
-    const nutrients = food ? nutrientsFor(food, quantity) : { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-    return { name, latest, quantity, baseQuantity: spec.quantity, food, nutrients };
+    const nutrients = food && spec.unit === 'g' ? nutrientsFor(food, quantity) : { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+    return { name, latest, quantity, baseQuantity: spec.quantity, unit: spec.unit, food: food && spec.unit === 'g' ? food : null, nutrients };
   });
 }
 function shopping() {
@@ -226,7 +244,7 @@ function shopping() {
   const categories = ['Fruits et légumes', 'Féculents et céréales', 'Produits laitiers', 'Viandes et charcuterie', 'Sauces et condiments', 'Boissons et snacking', 'Non alimentaire'];
   return `<section class="hero"><p>LISTE DE COURSES</p><h1>À acheter quand tu veux</h1><span>Propositions fondées sur les seuils de stock.</span></section>
   <section class="panel"><h2>Ajouter un article</h2><form id="shopping-form" class="inline-form"><input name="name" required placeholder="Ex. œufs" /><button>Ajouter</button></form></section>
-  <section class="panel"><h2>Mon panier</h2>${items.length ? `<div class="shopping-list">${items.map((item) => `<label><input type="checkbox" data-check-shopping="${item.id}" ${item.linkedPriceProduct ? `data-linked-price="${item.linkedPriceProduct}" ${selected.includes(item.linkedPriceProduct) ? 'checked' : ''}` : (item.done ? 'checked' : '')}/><span>${item.name}${item.suggested ? ` · au moins ${item.suggested} g` : ''}</span>${item.id.startsWith('stock-') ? '<em>stock faible</em>' : '<button class="icon" data-remove-shopping="' + item.id + '">×</button>'}</label>`).join('')}</div>` : ''}<h3 class="subheading">Produits suivis chez Lidl</h3>${categories.map((category) => { const names = products.filter((name) => priceCategory(name) === category); return names.length ? `<details class="product-category" open><summary>${category} <small>${names.length}</small></summary>${names.map((name) => priceProductCard(name, history, selected)).join('')}</details>` : ''; }).join('') || '<p class="empty">Aucun produit suivi.</p>'}${selectedItems.length ? `<section class="shopping-summary"><h3>Liste de courses</h3>${selectedItems.map((item) => `<article><div><b>${item.name}</b><small>${item.food ? 'Aliment relié au catalogue' : 'Prix disponible, composition à renseigner'}</small></div><label>Quantité (g)<input type="number" min="1" step="1" value="${item.quantity}" data-shopping-quantity="${item.name}" /></label><strong>${((item.latest?.price || 0) * item.quantity / item.baseQuantity).toFixed(2)} €</strong></article>`).join('')}<div class="cart-total"><b>Total estimé</b><strong>${total.toFixed(2)} €</strong></div><div class="cart-macros"><span>${number(nutritionTotal.kcal)} kcal</span><span>${number(nutritionTotal.protein)} g prot.</span><span>${number(nutritionTotal.carbs)} g gluc.</span><span>${number(nutritionTotal.fat)} g lip.</span></div></section>` : ''}</section>`;
+  <section class="panel"><h2>Mon panier</h2>${items.length ? `<div class="shopping-list">${items.map((item) => `<label><input type="checkbox" data-check-shopping="${item.id}" ${item.linkedPriceProduct ? `data-linked-price="${item.linkedPriceProduct}" ${selected.includes(item.linkedPriceProduct) ? 'checked' : ''}` : (item.done ? 'checked' : '')}/><span>${item.name}${item.suggested ? ` · au moins ${item.suggested} g` : ''}</span>${item.id.startsWith('stock-') ? '<em>stock faible</em>' : '<button class="icon" data-remove-shopping="' + item.id + '">×</button>'}</label>`).join('')}</div>` : ''}<h3 class="subheading">Produits suivis chez Lidl</h3>${categories.map((category) => { const names = products.filter((name) => priceCategory(name) === category); return names.length ? `<details class="product-category" open><summary>${category} <small>${names.length}</small></summary>${names.map((name) => priceProductCard(name, history, selected)).join('')}</details>` : ''; }).join('') || '<p class="empty">Aucun produit suivi.</p>'}${selectedItems.length ? `<section class="shopping-summary"><h3>Liste de courses</h3>${selectedItems.map((item) => `<article><div><b>${item.name}</b><small>${item.food ? 'Aliment relié au catalogue' : 'Prix disponible, composition à renseigner'}</small></div><label>Quantité (${item.unit})<input type="number" min="1" step="1" value="${item.quantity}" data-shopping-quantity="${item.name}" /></label><strong>${((item.latest?.price || 0) * item.quantity / item.baseQuantity).toFixed(2)} €</strong></article>`).join('')}<div class="cart-total"><b>Total estimé</b><strong>${total.toFixed(2)} €</strong></div><div class="cart-macros"><span>${number(nutritionTotal.kcal)} kcal</span><span>${number(nutritionTotal.protein)} g prot.</span><span>${number(nutritionTotal.carbs)} g gluc.</span><span>${number(nutritionTotal.fat)} g lip.</span></div></section>` : ''}</section>`;
 }
 function targets() {
   return `<dialog open class="target-dialog"><form id="targets-form"><button class="close" type="button" data-close-targets aria-label="Fermer">×</button><h2>Objectifs quotidiens</h2><p>Facultatifs : ils servent seulement à afficher des pourcentages et ne constituent pas un conseil médical.</p><div class="target-fields">${[['kcal','Calories (kcal)'],['protein','Protéines (g)'],['carbs','Glucides (g)'],['fat','Lipides (g)']].map(([key,label]) => `<label>${label}<input type="number" min="0" name="${key}" value="${state.targets[key]}" /></label>`).join('')}</div><button class="save-targets">Enregistrer les objectifs</button></form></dialog>`;
@@ -287,5 +305,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-34');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-35');
 render();
