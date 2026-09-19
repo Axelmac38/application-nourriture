@@ -15,6 +15,8 @@ export const SAMPLE_FOODS = [
   { id: 'tuna', name: 'Thon au naturel égoutté', category: 'Protéines animales', unit: 'g', kcal: 116, protein: 25.5, carbs: 0, fat: 0.8 },
   { id: 'salmon', name: 'Saumon cuit', category: 'Protéines animales', unit: 'g', kcal: 208, protein: 20, carbs: 0, fat: 13 },
   { id: 'lentils', name: 'Lentilles cuites', category: 'Protéines végétales', unit: 'g', kcal: 116, protein: 9, carbs: 20, fat: 0.4 },
+  { id: 'lentils-red', name: 'Lentilles corail sèches', category: 'Légumineuses sèches', unit: 'g', kcal: 350, protein: 25, carbs: 60, fat: 1.5 },
+  { id: 'lentils-green', name: 'Lentilles vertes sèches', category: 'Légumineuses sèches', unit: 'g', kcal: 330, protein: 24, carbs: 50, fat: 1.5 },
   { id: 'chickpeas', name: 'Pois chiches cuits', category: 'Protéines végétales', unit: 'g', kcal: 164, protein: 8.9, carbs: 27.4, fat: 2.6 },
   { id: 'black-beans', name: 'Haricots noirs cuits', category: 'Protéines végétales', unit: 'g', kcal: 132, protein: 8.9, carbs: 23.7, fat: 0.5 },
   { id: 'tofu', name: 'Tofu ferme', category: 'Protéines végétales', unit: 'g', kcal: 144, protein: 17.3, carbs: 2.8, fat: 8.7 },
@@ -29,6 +31,7 @@ export const SAMPLE_FOODS = [
   { id: 'milk', name: 'Lait entier', category: 'Produits laitiers', unit: 'g', kcal: 61, protein: 3.2, carbs: 4.8, fat: 3.3 },
   { id: 'mozzarella', name: 'Mozzarella', category: 'Produits laitiers', unit: 'g', kcal: 280, protein: 28, carbs: 3.1, fat: 17 },
   { id: 'emmental', name: 'Emmental râpé', category: 'Produits laitiers', unit: 'g', kcal: 390, protein: 28, carbs: 1, fat: 30 },
+  { id: 'flour', name: 'Farine de blé', category: 'Céréales', unit: 'g', kcal: 364, protein: 10.3, carbs: 76.3, fat: 1 },
   { id: 'mayonnaise', name: 'Mayonnaise classique', category: 'Condiments', unit: 'g', kcal: 680, protein: 1, carbs: 1, fat: 75 },
   { id: 'whey', name: 'Whey protéinée — valeurs de mon paquet', category: 'Compléments', unit: 'g', kcal: 384, protein: 72, carbs: 8.4, fat: 6.4 }
 ];
@@ -39,8 +42,13 @@ export const emptyState = () => ({
   logs: [],
   recipes: [],
   stock: [
-    { id: 'stock-oats', foodId: 'oats', quantity: 250, minimum: 150 },
-    { id: 'stock-rice', foodId: 'rice', quantity: 80, minimum: 200 }
+    { id: 'stock-rice', foodId: 'rice', quantity: 1625, minimum: 200 },
+    { id: 'stock-pasta', foodId: 'pasta', quantity: 1000, minimum: 200 },
+    { id: 'stock-lentils-red', foodId: 'lentils-red', quantity: 1350, minimum: 450 },
+    { id: 'stock-lentils-green', foodId: 'lentils-green', quantity: 500, minimum: 250 },
+    { id: 'stock-oats', foodId: 'oats', quantity: 500, minimum: 250 },
+    { id: 'stock-flour', foodId: 'flour', quantity: 2000, minimum: 500 },
+    { id: 'stock-emmental', foodId: 'emmental', quantity: 500, minimum: 100 }
   ],
   shopping: []
 });

@@ -1,8 +1,9 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-12';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-13';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
 const SAMPLE_RECIPES_VERSION = 'sample-recipes-20260919';
+const STOCK_VERSION = 'stock-axel-20260919';
 const app = document.querySelector('#app');
 let state = loadState();
 let view = 'journal';
@@ -17,6 +18,7 @@ function loadState() {
       next.recipes = sampleRecipes();
       next.testMealVersion = TEST_MEAL_VERSION;
       next.sampleRecipesVersion = SAMPLE_RECIPES_VERSION;
+      next.stockVersion = STOCK_VERSION;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     }
@@ -25,6 +27,11 @@ function loadState() {
     if (next.sampleRecipesVersion !== SAMPLE_RECIPES_VERSION) {
       next.recipes = [...(next.recipes || []), ...sampleRecipes().filter((recipe) => !(next.recipes || []).some((item) => item.id === recipe.id))];
       next.sampleRecipesVersion = SAMPLE_RECIPES_VERSION;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    }
+    if (next.stockVersion !== STOCK_VERSION) {
+      next.stock = emptyState().stock;
+      next.stockVersion = STOCK_VERSION;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     }
     const currentWhey = next.foods.find((food) => food.id === 'whey');
@@ -187,5 +194,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-12');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-13');
 render();
