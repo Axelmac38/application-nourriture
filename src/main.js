@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients } from './domain.js';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const app = document.querySelector('#app');
@@ -9,7 +9,9 @@ let toast = '';
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return saved && saved.foods ? saved : emptyState();
+    if (!saved?.foods) return emptyState();
+    const knownIds = new Set(saved.foods.map((food) => food.id));
+    return { ...saved, foods: [...saved.foods, ...SAMPLE_FOODS.filter((food) => !knownIds.has(food.id))] };
   } catch { return emptyState(); }
 }
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }

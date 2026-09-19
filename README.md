@@ -11,7 +11,7 @@ Première version mobile installable dans un navigateur, indépendante de MyFitn
 - seuils de stock et liste de courses proposée ;
 - articles de courses ajoutés manuellement.
 
-Les aliments et quantités initiales sont de simples exemples. L’application ne fournit aucun objectif nutritionnel personnel ni conseil médical.
+Le catalogue initial comporte des aliments génériques courants ; leurs valeurs sont des moyennes indicatives pour 100 g et ne remplacent jamais l’étiquette d’un produit précis. Certains noms ont été identifiés dans la liste hors ligne de l’APK de référence, mais aucune base propriétaire complète n’est importée. L’application ne fournit aucun objectif nutritionnel personnel ni conseil médical.
 
 ## Lancer localement
 

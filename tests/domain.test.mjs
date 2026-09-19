@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addNutrients, emptyState, lowStock, nutrientsFor, recipeNutrients } from '../src/domain.js';
+import { addNutrients, emptyState, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from '../src/domain.js';
+
+test('inclut une sélection de fruits, protéines, légumes et produits laitiers', () => {
+  assert.ok(SAMPLE_FOODS.length >= 25);
+  assert.ok(SAMPLE_FOODS.some((food) => food.id === 'banana'));
+  assert.ok(SAMPLE_FOODS.some((food) => food.id === 'broccoli'));
+  assert.ok(SAMPLE_FOODS.some((food) => food.id === 'greek-yogurt'));
+});
 
 test('calcule les nutriments au prorata', () => {
   assert.deepEqual(nutrientsFor({ kcal: 100, protein: 10, carbs: 20, fat: 5 }, 150), { kcal: 150, protein: 15, carbs: 30, fat: 7.5 });
