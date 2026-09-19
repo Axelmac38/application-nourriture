@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-6';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-7';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -19,6 +19,9 @@ function loadState() {
     }
     const knownIds = new Set(saved.foods.map((food) => food.id));
     const next = { ...saved, foods: [...saved.foods, ...SAMPLE_FOODS.filter((food) => !knownIds.has(food.id))] };
+    const currentWhey = next.foods.find((food) => food.id === 'whey');
+    const packageWhey = SAMPLE_FOODS.find((food) => food.id === 'whey');
+    if (currentWhey?.name.includes('valeur générique')) Object.assign(currentWhey, packageWhey);
     if (next.testMealVersion !== TEST_MEAL_VERSION) {
       next.logs = testMealLogs(next.foods);
       next.testMealVersion = TEST_MEAL_VERSION;
@@ -47,6 +50,8 @@ function foodPreview(foodId, grams) {
   if (!food || !Number(grams)) return '';
   const addition = nutrientsFor(food, grams);
   const current = totalToday();
+  const macroEnergy = addition.protein * 4 + addition.carbs * 4 + addition.fat * 9;
+  const macroShare = macroEnergy ? { protein: number((addition.protein * 4 / macroEnergy) * 100), fat: number((addition.fat * 9 / macroEnergy) * 100), carbs: number((addition.carbs * 4 / macroEnergy) * 100) } : null;
   const labels = { kcal: ['Énergie', ' kcal'], protein: ['Protéines', ' g'], carbs: ['Glucides', ' g'], fat: ['Lipides', ' g'] };
   const charts = Object.entries(labels).map(([key, [label, suffix]]) => {
     const target = Number(state.targets[key]);
@@ -59,7 +64,8 @@ function foodPreview(foodId, grams) {
     const status = after > target ? `+${number(after - target)}${suffix} au-dessus` : `${number(target - after)}${suffix} restant`;
     return `<article class="donut-card"><div class="donut ${overflowPercent ? 'over-target' : ''}" style="--before:${beforePercent}%;--after:${afterPercent}%;--overflow:${overflowPercent}%" aria-label="${label} : ${actualPercent} % de l’objectif après ajout"><span>${actualPercent}<small>%</small></span></div><b>${label}</b><strong>+${number(addition[key])}${suffix}</strong><small>${status}</small></article>`;
   }).join('');
-  return `<aside id="food-preview" class="food-preview"><h3>Effet avant ajout</h3><p><b>${food.name}</b> · ${grams} g</p><div class="donut-grid">${charts}</div><p class="hint">Vert clair : déjà consommé · vert foncé : ajout proposé. Ce repère compare seulement aux objectifs renseignés.</p></aside>`;
+  const distribution = macroShare ? `<div class="macro-share"><b>Répartition de l’apport</b><div class="macro-bar"><i style="width:${macroShare.protein}%"></i><i style="width:${macroShare.fat}%"></i><i style="width:${macroShare.carbs}%"></i></div><small><span>Protéines ${macroShare.protein}%</span><span>Lipides ${macroShare.fat}%</span><span>Glucides ${macroShare.carbs}%</span></small></div>` : '';
+  return `<aside id="food-preview" class="food-preview"><h3>Effet avant ajout</h3><p><b>${food.name}</b> · ${grams} g</p>${distribution}<div class="donut-grid">${charts}</div><p class="hint">Vert clair : déjà consommé · vert foncé : ajout proposé. Ce repère compare seulement aux objectifs renseignés.</p></aside>`;
 }
 function addLog(foodId, grams, meal = 'Petit-déjeuner', name = null) {
   const food = state.foods.find((item) => item.id === foodId);
@@ -142,5 +148,5 @@ function updateFoodPreview() {
   preview.outerHTML = foodPreview(form.elements.foodId.value, form.elements.grams.value);
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-6');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-7');
 render();

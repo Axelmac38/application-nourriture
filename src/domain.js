@@ -30,7 +30,7 @@ export const SAMPLE_FOODS = [
   { id: 'mozzarella', name: 'Mozzarella', category: 'Produits laitiers', unit: 'g', kcal: 280, protein: 28, carbs: 3.1, fat: 17 },
   { id: 'emmental', name: 'Emmental râpé', category: 'Produits laitiers', unit: 'g', kcal: 390, protein: 28, carbs: 1, fat: 30 },
   { id: 'mayonnaise', name: 'Mayonnaise classique', category: 'Condiments', unit: 'g', kcal: 680, protein: 1, carbs: 1, fat: 75 },
-  { id: 'whey', name: 'Whey protéinée — valeur générique à vérifier', category: 'Compléments', unit: 'g', kcal: 400, protein: 80, carbs: 8, fat: 6 }
+  { id: 'whey', name: 'Whey protéinée — valeurs de mon paquet', category: 'Compléments', unit: 'g', kcal: 384, protein: 72, carbs: 8.4, fat: 6.4 }
 ];
 
 export const emptyState = () => ({
