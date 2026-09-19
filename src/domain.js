@@ -15,7 +15,7 @@ export const SAMPLE_FOODS = [
   { id: 'tuna', name: 'Thon au naturel égoutté', category: 'Protéines animales', unit: 'g', kcal: 116, protein: 25.5, carbs: 0, fat: 0.8 },
   { id: 'salmon', name: 'Saumon cuit', category: 'Protéines animales', unit: 'g', kcal: 208, protein: 20, carbs: 0, fat: 13 },
   { id: 'lentils', name: 'Lentilles cuites', category: 'Protéines végétales', unit: 'g', kcal: 116, protein: 9, carbs: 20, fat: 0.4 },
-  { id: 'lentils-red', name: 'Lentilles corail sèches', category: 'Légumineuses sèches', unit: 'g', kcal: 350, protein: 25, carbs: 60, fat: 1.5 },
+  { id: 'lentils-red', name: 'Lentilles corail sèches', category: 'Légumineuses sèches', unit: 'g', kcal: 340, protein: 25.5, carbs: 53, fat: 1.5 },
   { id: 'lentils-green', name: 'Lentilles vertes sèches', category: 'Légumineuses sèches', unit: 'g', kcal: 330, protein: 24, carbs: 50, fat: 1.5 },
   { id: 'chickpeas', name: 'Pois chiches cuits', category: 'Protéines végétales', unit: 'g', kcal: 164, protein: 8.9, carbs: 27.4, fat: 2.6 },
   { id: 'black-beans', name: 'Haricots noirs cuits', category: 'Protéines végétales', unit: 'g', kcal: 132, protein: 8.9, carbs: 23.7, fat: 0.5 },
