@@ -1,4 +1,4 @@
-const CACHE = 'repas-stock-v64';
+const CACHE = 'repas-stock-v65';
 const ASSETS = ['./', './index.html', './styles.css', './recipe.css', './src/main.js', './src/domain.js', './manifest.webmanifest', './assets/icon.svg'];
 self.addEventListener('install', (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));

@@ -333,7 +333,7 @@ function render() {
   bind();
 }
 function bind() {
-  app.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { view = button.dataset.view; render(); }));
+  app.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { const nextView = button.dataset.view; if (nextView === view) return; view = nextView; history.pushState({ repasStock: true, view }, '', `#${view}`); render(); }));
   app.querySelector('.food-composer .section-title')?.addEventListener('click', () => { journalComposerOpen = !journalComposerOpen; render(); });
   app.querySelector('#log-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodId = data.get('foodId'); const grams = Number(data.get('grams')); addLog(foodId, grams, data.get('meal')); if (data.get('fromStock')) removeFromStock(foodId, grams); save(); notify(data.get('fromStock') ? 'Aliment ajouté et stock diminué.' : 'Aliment ajouté au journal.'); });
   app.querySelector('#log-form input[name="foodSearch"]')?.addEventListener('input', updateFoodSearch);
@@ -451,5 +451,7 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-62');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-63');
+if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
+addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
