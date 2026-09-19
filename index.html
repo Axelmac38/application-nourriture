@@ -34,6 +34,10 @@
       .recipe-actions { display: flex; gap: 8px; }
       .recipe-action { width: 38px; height: 34px; padding: 4px; font-size: 1.05rem; line-height: 1; }
       .recipe-icon-button { width: 38px; min-width: 38px; height: 34px; padding: 3px; font-size: 1.1rem; line-height: 1; }
+      .recipe-icon-button + .recipe-icon-button { margin-left: 8px; }
+      .recipe-actions, .form-actions { display: flex; align-items: center; gap: 8px; }
+      .form-actions { margin-top: 16px; }
+      #recipe-edit-form > .recipe-icon-button { margin-top: 12px; }
       .stock-actions { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
       .stock-actions .small { white-space: nowrap; }
       .checkbox-field { display: flex !important; align-items: center; gap: 7px !important; align-self: end; }
@@ -77,6 +81,6 @@
       .metric-donut-card strong { margin: 3px 0; }
       .metric-empty-donut { background: #e7f0e9; }
     </style>
-    <script type="module" src="./src/main.js?v=20260920-66"></script>
+    <script type="module" src="./src/main.js?v=20260920-67"></script>
   </body>
 </html>
