@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-27';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-28';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -172,8 +172,9 @@ function priceChart(records) {
   if (records.length < 2) return '<p class="empty">Un seul relevé pour le moment.</p>';
   const prices = records.map((item) => item.price);
   const min = Math.min(...prices); const max = Math.max(...prices); const span = max - min || 1;
-  const points = records.map((item, index) => `${(index / (records.length - 1)) * 180 + 10},${45 - ((item.price - min) / span) * 35}`).join(' ');
-  return `<svg class="price-chart" viewBox="0 0 200 55" role="img" aria-label="Évolution du prix"><polyline points="${points}" /></svg><small>${records[0].price.toFixed(2)} € → ${records.at(-1).price.toFixed(2)} €</small>`;
+  const coordinates = records.map((item, index) => ({ x: (index / (records.length - 1)) * 228 + 34, y: 92 - ((item.price - min) / span) * 62 }));
+  const points = coordinates.map(({ x, y }) => `${x},${y}`).join(' ');
+  return `<div class="price-chart-wrap"><svg class="price-chart" viewBox="0 0 280 120" role="img" aria-label="Évolution du prix"><line x1="34" y1="30" x2="262" y2="30"/><line x1="34" y1="61" x2="262" y2="61"/><line x1="34" y1="92" x2="262" y2="92"/><text x="3" y="34">${max.toFixed(2)} €</text><text x="3" y="96">${min.toFixed(2)} €</text><polyline points="${points}"/>${coordinates.map(({ x, y }) => `<circle cx="${x}" cy="${y}" r="4"/>`).join('')}</svg><small>${records[0].price.toFixed(2)} € → ${records.at(-1).price.toFixed(2)} €</small></div>`;
 }
 function shopping() {
   const low = lowStock(state);
@@ -244,5 +245,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-27');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-28');
 render();
