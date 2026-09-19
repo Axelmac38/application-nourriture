@@ -22,6 +22,7 @@ test('additionne les apports', () => {
 });
 test('signale les stocks au seuil ou en dessous', () => {
   const state = emptyState();
+  state.stock[0].quantity = state.stock[0].minimum;
   assert.equal(lowStock(state).length, 1);
 });
 test('calcule une recette à plusieurs ingrédients à partir du catalogue', () => {
