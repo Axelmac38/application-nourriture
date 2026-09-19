@@ -42,7 +42,7 @@ let toast = '';
 let journalComposerOpen = false;
 let openShoppingCategories = new Set();
 let recipeEditorId = null;
-const MEAL_DISPLAY_ORDER = { Dîner: 0, Collation: 1, Déjeuner: 2, 'Petit-déjeuner': 3, Repas: 4 };
+const MEAL_DISPLAY_ORDER = { Dîner: 0, Repas: 1, Collation: 2, Déjeuner: 3, 'Petit-déjeuner': 4 };
 
 function loadState() {
   try {
@@ -451,5 +451,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-61');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-62');
 render();
