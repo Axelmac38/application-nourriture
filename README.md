@@ -7,6 +7,7 @@ Première version mobile installable dans un navigateur, indépendante de MyFitn
 - journal alimentaire quotidien avec calories, protéines, glucides et lipides ;
 - objectifs facultatifs et configurables ;
 - aperçu de l’effet d’un aliment sur les objectifs avant son ajout ;
+- panneau d’objectifs centré, défilable et doté d’un enregistrement visible.
 - recettes à plusieurs ingrédients, enregistrables dans le journal ;
 - déduction des ingrédients présents dans le stock ;
 - seuils de stock et liste de courses proposée ;

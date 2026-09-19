@@ -1,6 +1,7 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-3';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-4';
 
 const STORAGE_KEY = 'repas-stock-v1';
+const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
 const app = document.querySelector('#app');
 let state = loadState();
 let view = 'journal';
@@ -9,9 +10,21 @@ let toast = '';
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (!saved?.foods) return emptyState();
+    if (!saved?.foods) {
+      const next = emptyState();
+      next.logs = testMealLogs(next.foods);
+      next.testMealVersion = TEST_MEAL_VERSION;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    }
     const knownIds = new Set(saved.foods.map((food) => food.id));
-    return { ...saved, foods: [...saved.foods, ...SAMPLE_FOODS.filter((food) => !knownIds.has(food.id))] };
+    const next = { ...saved, foods: [...saved.foods, ...SAMPLE_FOODS.filter((food) => !knownIds.has(food.id))] };
+    if (next.testMealVersion !== TEST_MEAL_VERSION) {
+      next.logs = testMealLogs(next.foods);
+      next.testMealVersion = TEST_MEAL_VERSION;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    }
+    return next;
   } catch { return emptyState(); }
 }
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -48,13 +61,16 @@ function addLog(foodId, grams, meal = 'Petit-déjeuner', name = null) {
   if (!food) return;
   state.logs.unshift({ id: crypto.randomUUID(), date: today(), meal, name: name || food.name, grams, foodId, ...nutrientsFor(food, grams) });
 }
-function loadTestMeal() {
-  state.logs = [];
-  addLog('egg', 250, 'Petit-déjeuner', 'Œufs entiers · 5 unités (test)');
-  addLog('emmental', 30, 'Petit-déjeuner', 'Emmental râpé · 30 g (estimation de test)');
-  addLog('mayonnaise', 15, 'Petit-déjeuner', 'Mayonnaise · 1 cuillère à soupe (15 g, test)');
-  save();
-  notify('Repas de test chargé : 5 œufs, emmental et mayonnaise.');
+function testMealLogs(foods) {
+  const entries = [
+    ['egg', 250, 'Œufs entiers · 5 unités'],
+    ['emmental', 30, 'Emmental râpé · 30 g (estimation)'],
+    ['mayonnaise', 15, 'Mayonnaise · 1 cuillère à soupe (15 g, estimation)']
+  ];
+  return entries.map(([foodId, grams, name]) => {
+    const food = foods.find((item) => item.id === foodId);
+    return { id: crypto.randomUUID(), date: today(), meal: 'Petit-déjeuner', name, grams, foodId, ...nutrientsFor(food, grams) };
+  });
 }
 function nav() {
   const labels = { journal: 'Journal', recettes: 'Recettes', stock: 'Stock', courses: 'Courses' };
@@ -65,8 +81,9 @@ function journal() {
   const logs = state.logs.filter((entry) => entry.date === today());
   return `<section class="hero"><p>AUJOURD’HUI</p><h1>Ton journal alimentaire</h1><span>${new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</span></section>
   <section class="metrics">${targetCard('Énergie', 'kcal', totals.kcal, ' kcal')}${targetCard('Protéines', 'protein', totals.protein, ' g')}${targetCard('Glucides', 'carbs', totals.carbs, ' g')}${targetCard('Lipides', 'fat', totals.fat, ' g')}</section>
-  <section class="panel"><div class="section-title"><h2>Ajouter un aliment</h2><button class="link" data-action="open-targets">Objectifs</button></div>
-  <form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Aliment<select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}<button class="test-button" data-load-test>Charger le test : 5 œufs, 30 g d’emmental et 1 c. à soupe de mayo</button></section>
+  <button class="goals-button" data-action="open-targets"><span>Objectifs quotidiens</span><b>Définir ou modifier →</b></button>
+  <section class="panel"><h2>Ajouter un aliment</h2>
+  <form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Aliment<select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}</section>
   <section class="panel"><h2>Repas enregistrés</h2>${logs.length ? `<div class="log-list">${logs.map((entry) => `<article><div><b>${entry.meal}</b><span>${entry.name} · ${entry.grams} g</span></div><strong>${entry.kcal} kcal</strong><button class="icon" data-remove-log="${entry.id}" aria-label="Supprimer">×</button></article>`).join('')}</div>` : '<p class="empty">Aucun repas enregistré pour aujourd’hui.</p>'}</section>`;
 }
 function recipes() {
@@ -87,7 +104,7 @@ function shopping() {
   <section class="panel"><h2>À prévoir</h2>${items.length ? `<div class="shopping-list">${items.map((item) => `<label><input type="checkbox" data-check-shopping="${item.id}" ${item.done ? 'checked' : ''}/><span>${item.name}${item.suggested ? ` · au moins ${item.suggested} g` : ''}</span>${item.id.startsWith('stock-') ? '<em>stock faible</em>' : '<button class="icon" data-remove-shopping="' + item.id + '">×</button>'}</label>`).join('')}</div>` : '<p class="empty">Aucun produit à acheter pour le moment.</p>'}</section>`;
 }
 function targets() {
-  return `<dialog open class="target-dialog"><form id="targets-form"><button class="close" type="button" data-close-targets>×</button><h2>Objectifs personnels</h2><p>Facultatifs : ils servent seulement à afficher des pourcentages et ne constituent pas un conseil médical.</p><div class="form-grid">${[['kcal','Calories (kcal)'],['protein','Protéines (g)'],['carbs','Glucides (g)'],['fat','Lipides (g)']].map(([key,label]) => `<label>${label}<input type="number" min="0" name="${key}" value="${state.targets[key]}" /></label>`).join('')}<button>Enregistrer</button></div></form></dialog>`;
+  return `<dialog open class="target-dialog"><form id="targets-form"><button class="close" type="button" data-close-targets aria-label="Fermer">×</button><h2>Objectifs quotidiens</h2><p>Facultatifs : ils servent seulement à afficher des pourcentages et ne constituent pas un conseil médical.</p><div class="target-fields">${[['kcal','Calories (kcal)'],['protein','Protéines (g)'],['carbs','Glucides (g)'],['fat','Lipides (g)']].map(([key,label]) => `<label>${label}<input type="number" min="0" name="${key}" value="${state.targets[key]}" /></label>`).join('')}</div><button class="save-targets">Enregistrer les objectifs</button></form></dialog>`;
 }
 function ingredientLine() {
   return `<div class="ingredient-line"><label>Ingrédient<select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label></div>`;
@@ -102,7 +119,6 @@ function bind() {
   app.querySelector('#log-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); addLog(data.get('foodId'), Number(data.get('grams')), data.get('meal')); save(); notify('Aliment ajouté au journal.'); });
   app.querySelector('#log-form select[name="foodId"]')?.addEventListener('change', updateFoodPreview);
   app.querySelector('#log-form input[name="grams"]')?.addEventListener('input', updateFoodPreview);
-  app.querySelector('[data-load-test]')?.addEventListener('click', loadTestMeal);
   app.querySelectorAll('[data-remove-log]').forEach((button) => button.addEventListener('click', () => { state.logs = state.logs.filter((item) => item.id !== button.dataset.removeLog); save(); render(); }));
   app.querySelector('[data-action="open-targets"]')?.addEventListener('click', () => { app.insertAdjacentHTML('beforeend', targets()); bindTargets(); });
   app.querySelector('[data-add-ingredient]')?.addEventListener('click', () => { app.querySelector('#ingredient-lines').insertAdjacentHTML('beforeend', ingredientLine()); });
@@ -121,5 +137,5 @@ function updateFoodPreview() {
   preview.outerHTML = foodPreview(form.elements.foodId.value, form.elements.grams.value);
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-3');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-4');
 render();
