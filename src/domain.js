@@ -49,7 +49,8 @@ export const emptyState = () => ({
     { id: 'stock-lentils-green', foodId: 'lentils-green', quantity: 500, minimum: 250 },
     { id: 'stock-oats', foodId: 'oats', quantity: 500, minimum: 500 },
     { id: 'stock-flour', foodId: 'flour', quantity: 2000, minimum: 1000 },
-    { id: 'stock-emmental', foodId: 'emmental', quantity: 500, minimum: 100 }
+    { id: 'stock-emmental', foodId: 'emmental', quantity: 500, minimum: 100 },
+    { id: 'stock-mayonnaise', foodId: 'mayonnaise', quantity: 200, minimum: 100, packageQuantity: 500 }
   ],
   shopping: []
 });
