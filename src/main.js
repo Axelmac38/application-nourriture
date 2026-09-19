@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-2';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const app = document.querySelector('#app');
@@ -80,5 +80,5 @@ function bind() {
   app.querySelectorAll('[data-remove-shopping]').forEach((button) => button.addEventListener('click', () => { state.shopping = state.shopping.filter((item) => item.id !== button.dataset.removeShopping); save(); render(); }));
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-2');
 render();
