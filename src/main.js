@@ -269,7 +269,7 @@ function cartMacroDonuts(nutritionTotal) {
     const target = Number(state.targets[key]);
     const percent = target ? number((nutritionTotal[key] / target) * 100) : null;
     const fill = percent === null ? 0 : Math.min(100, Math.max(0, percent));
-    return `<article class="donut-card cart-donut-card"><div class="donut ${percent !== null && percent > 100 ? 'over-target' : ''}" style="--before:0%;--after:${fill}%;--overflow:0%" aria-label="${label} : ${percent === null ? 'objectif non renseigné' : `${percent} % de l’objectif`}"><span>${percent === null ? '—' : percent}<small>${percent === null ? '' : '%'}</small></span></div><b>${label}</b><strong>${number(nutritionTotal[key])} ${suffix}</strong><small>${percent === null ? 'Objectif non renseigné' : `${percent} % d’un objectif quotidien`}</small></article>`;
+    return `<article class="donut-card cart-donut-card"><div class="donut ${percent !== null && percent > 100 ? 'over-target' : ''}" style="--before:0%;--after:${fill}%;--overflow:0%" aria-label="${label} : ${percent === null ? 'objectif non renseigné' : `${percent} % de l’objectif`}"><span>${percent === null ? '—' : percent}<small>${percent === null ? '' : '%'}</small></span></div><b>${label}</b><strong>${number(nutritionTotal[key])} ${suffix}</strong><small>${percent === null ? 'Objectif non renseigné' : 'objectif quotidien'}</small></article>`;
   }).join('');
 }
 function shopping() {
@@ -420,5 +420,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-52');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-53');
 render();
