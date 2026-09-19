@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-31';
+import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-32';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -192,9 +192,9 @@ function priceProductCard(name, history, selected) {
 }
 function purchaseSpec(name) {
   const specs = {
-    'Flocons d’avoine': ['oats', 1000], 'Coquillettes 1 kg': ['pasta', 1000], 'Lentilles vertes': ['lentils-green', 500],
+    'Flocons d’avoine': ['oats', 1000], 'Coquillettes 1 kg': ['pasta-dry', 1000], 'Lentilles vertes': ['lentils-green', 500],
     'Fromage blanc': ['fromage-blanc', 1000], 'Emmental râpé': ['emmental', 250], 'Mayonnaise': ['mayonnaise', 500],
-    'Banane 4 fruits': ['banana', 500], 'Citron 500 g': ['clementine', 500], 'Ail 250 g': ['carrot', 250],
+    'Banane 4 fruits': ['banana', 500], 'Citron 500 g': ['lemon', 500], 'Ail 250 g': ['garlic', 250],
     'Jus d’orange': [null, 1000], 'Pain de mie': ['wholewheat-bread', 500], 'Crème fraîche épaisse': [null, 200]
   };
   const [foodId = null, quantity = 1] = specs[name] || [];
@@ -284,5 +284,5 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-31');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260919-32');
 render();
