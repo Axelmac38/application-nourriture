@@ -38,6 +38,7 @@ const STOCK_PURCHASE_QUANTITIES = { rice: 1000, pasta: 1000, 'lentils-red': 450,
 const app = document.querySelector('#app');
 let state = loadState();
 state.unitPreferences = state.unitPreferences || {};
+state.water = state.water || {};
 let view = 'journal';
 let toast = '';
 let journalComposerOpen = false;
@@ -122,6 +123,12 @@ function today() { return new Date().toISOString().slice(0, 10); }
 function number(value) { return Math.round(Number(value || 0) * 10) / 10; }
 function notify(message) { toast = message; render(); setTimeout(() => { toast = ''; render(); }, 2600); }
 function totalToday() { return addNutrients(state.logs.filter((entry) => entry.date === today())); }
+function waterTracker() {
+  const consumed = Number(state.water[today()] || 0);
+  const goal = 2000;
+  const percent = Math.min(100, Math.round((consumed / goal) * 100));
+  return `<section class="panel water-tracker"><div class="section-title"><h2>Eau</h2><span>${consumed} ml / ${goal} ml</span></div><div class="water-progress"><span style="width:${percent}%"></span></div><div class="water-controls"><button class="small" type="button" data-water-change="-250">− 250 ml</button><label><span>Bu aujourd’hui (ml)</span><input type="number" min="0" step="50" value="${consumed}" data-water-amount /></label><button class="small" type="button" data-water-change="250">+ 250 ml</button></div><small>${percent}% de l’objectif quotidien indicatif</small></section>`;
+}
 function targetCard(label, key, value, suffix) {
   const target = Number(state.targets[key]);
   const actualPercent = target ? number((value / target) * 100) : null;
@@ -231,7 +238,7 @@ function journal() {
   const logs = state.logs.filter((entry) => entry.date === today()).sort((a, b) => (MEAL_DISPLAY_ORDER[a.meal] ?? 99) - (MEAL_DISPLAY_ORDER[b.meal] ?? 99));
   return `<section class="hero"><p>AUJOURD’HUI</p><h1>Ton journal alimentaire</h1><button class="date-button" data-open-period>${new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())} ▾</button></section>
   <section class="metrics">${targetCard('Énergie', 'kcal', totals.kcal, ' kcal')}${targetCard('Protéines', 'protein', totals.protein, ' g')}${targetCard('Glucides', 'carbs', totals.carbs, ' g')}${targetCard('Lipides', 'fat', totals.fat, ' g')}</section>
-  <button class="goals-button" data-action="open-targets"><span>Objectifs quotidiens</span><b>Définir ou modifier →</b></button>
+  <button class="goals-button" data-action="open-targets"><span>Objectifs quotidiens</span><b>Définir ou modifier →</b></button>${waterTracker()}
   <section class="panel food-composer"><div class="section-title"><h2>Ajouter un aliment</h2><button class="link" type="button" data-toggle-food-composer aria-label="${journalComposerOpen ? 'Replier l’ajout d’aliment' : 'Afficher l’ajout d’aliment'}" title="${journalComposerOpen ? 'Replier' : 'Afficher'}">${journalComposerOpen ? '−' : '+'}</button></div>${journalComposerOpen ? `<form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Aliment<input name="foodSearch" placeholder="Rechercher dans la liste…" autocomplete="off" /><select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><label class="checkbox-field"><input name="fromStock" type="checkbox" /> Prélevé du stock</label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}` : ''}</section>
   <section class="panel"><h2>Repas enregistrés</h2>${logs.length ? `<div class="log-list">${logs.map((entry) => `<article data-log-row="${entry.id}" title="Double-cliquer pour modifier"><div><b>${entry.meal}</b><span>${foodAmountLabel(entry.foodId, entry.grams, entry.name)}</span></div><strong>${entry.kcal} kcal</strong><div class="log-actions"><button class="small" data-edit-log="${entry.id}">Modifier</button><button class="icon" data-remove-log="${entry.id}" aria-label="Supprimer">×</button></div></article>`).join('')}</div>` : '<p class="empty">Aucun repas enregistré pour aujourd’hui.</p>'}</section>`;
 }
@@ -387,6 +394,8 @@ function render() {
 function bind() {
   app.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { const nextView = button.dataset.view; if (nextView === view) return; view = nextView; history.pushState({ repasStock: true, view }, '', `#${view}`); render(); }));
   app.querySelector('.food-composer .section-title')?.addEventListener('click', () => { journalComposerOpen = !journalComposerOpen; render(); });
+  app.querySelector('[data-water-amount]')?.addEventListener('change', (event) => { state.water[today()] = Math.max(0, Number(event.target.value) || 0); save(); render(); });
+  app.querySelectorAll('[data-water-change]').forEach((button) => button.addEventListener('click', () => { state.water[today()] = Math.max(0, Number(state.water[today()] || 0) + Number(button.dataset.waterChange)); save(); render(); }));
   app.querySelector('#log-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodId = data.get('foodId'); const grams = Number(data.get('grams')); addLog(foodId, grams, data.get('meal')); if (data.get('fromStock')) removeFromStock(foodId, grams); save(); notify(data.get('fromStock') ? 'Aliment ajouté et stock diminué.' : 'Aliment ajouté au journal.'); });
   app.querySelector('#log-form input[name="foodSearch"]')?.addEventListener('input', updateFoodSearch);
   app.querySelector('#log-form select[name="foodId"]')?.addEventListener('change', updateFoodPreview);
@@ -495,7 +504,8 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-74');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-75');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
+
