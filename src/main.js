@@ -139,7 +139,7 @@ function waterTracker() {
   const consumed = Number(state.water[today()] || 0);
   const goal = 2000;
   const percent = Math.min(100, Math.round((consumed / goal) * 100));
-  return `<section class="panel water-tracker"><div class="section-title"><h2>Eau</h2><span>${consumed} ml / ${goal} ml</span></div><label class="water-slider-label"><span>Avancement</span><div class="water-slider-wrap"><input type="range" min="0" max="5000" step="50" value="${consumed}" data-water-slider aria-label="Quantité d’eau bue aujourd’hui" /><i class="water-recommendation" aria-label="Repère à 2,5 litres recommandés pour un homme adulte"><b>2,5 L</b></i></div></label><div class="water-bottle-controls"><label><span>Taille de ma gourde (ml)</span><input type="number" min="50" step="50" value="${state.waterBottleSize}" data-water-bottle-size /></label><button class="small" type="button" data-add-water-bottle>＋ Ajouter une gourde</button></div><small>${percent}% de l’objectif quotidien indicatif · repère rouge : 2,5 L</small></section>`;
+  return `<section class="panel water-tracker"><div class="section-title"><h2>Eau</h2><span>${consumed} ml / ${goal} ml</span></div><label class="water-slider-label"><span>Avancement</span><div class="water-slider-wrap"><input type="range" min="0" max="5000" step="50" value="${consumed}" data-water-slider aria-label="Quantité d’eau bue aujourd’hui" /><i class="water-recommendation" aria-label="Repère à 2,5 litres recommandés pour un homme adulte"><b>2,5 L</b></i></div></label><div class="water-bottle-controls"><label><span>Taille de ma gourde (ml)</span><input type="number" min="50" step="50" value="${state.waterBottleSize}" data-water-bottle-size /></label><button class="small" type="button" data-add-water-bottle>＋ Ajouter une gourde</button></div><small>${percent}% de l’objectif quotidien indicatif</small></section>`;
 }
 function targetCard(label, key, value, suffix) {
   const target = Number(state.targets[key]);
@@ -552,10 +552,11 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-92');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-93');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
+
 
 
 
