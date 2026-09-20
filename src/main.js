@@ -242,8 +242,11 @@ function testMealLogs(foods) {
   });
 }
 function nav() {
-  const labels = { journal: 'Journal', recettes: 'Recettes', stock: 'Stock', courses: 'Courses' };
+  const labels = { journal: 'Journal', recettes: 'Recettes', stock: 'Stock', courses: 'Courses', parametres: 'Paramètres' };
   return `<nav>${Object.entries(labels).map(([id, label]) => `<button class="${view === id ? 'active' : ''}" data-view="${id}">${label}</button>`).join('')}</nav>`;
+}
+function settings() {
+  return `<section class="hero"><p>RÉGLAGES</p><h1>Gérer tes données</h1><span>Exporte une sauvegarde pour la conserver ou me l’envoyer afin que je t’aide à la modifier.</span></section><section class="panel settings-panel"><h2>Sauvegarde</h2><p>Le fichier contient ton stock, tes repas, tes recettes, tes courses et tes préférences. Il reste sur ton appareil sauf si tu choisis de le partager.</p><div class="settings-actions"><button type="button" data-export-data>Exporter mes données</button><button type="button" class="secondary" data-import-data>Importer des données</button></div><input type="file" accept="application/json,.json" data-import-file hidden /><p class="hint">Après une modification de fichier, importe-le ici pour remplacer les données actuellement enregistrées sur cet appareil.</p></section>`;
 }
 function journal() {
   const totals = totalToday();
@@ -427,12 +430,15 @@ function ingredientLine(item = null, removable = false) {
   return `<div class="ingredient-line"><label>Ingrédient<select name="foodId">${foodOptions(item?.foodId)}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="${item?.grams || 100}" required /></label>${removable ? '<button type="button" class="icon" data-remove-ingredient aria-label="Supprimer cet ingrédient">×</button>' : ''}</div>`;
 }
 function render() {
-  const content = view === 'journal' ? journal() : view === 'recettes' ? recipes() : view === 'stock' ? stock() : shopping();
+  const content = view === 'journal' ? journal() : view === 'recettes' ? recipes() : view === 'stock' ? stock() : view === 'courses' ? shopping() : settings();
   app.innerHTML = `<header><a href="#" class="brand">repas<span>&</span>stock</a></header>${content}${nav()}${toast ? `<div class="toast">${toast}</div>` : ''}`;
   bind();
 }
 function bind() {
   app.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { const nextView = button.dataset.view; if (nextView === view) return; view = nextView; history.pushState({ repasStock: true, view }, '', `#${view}`); render(); }));
+  app.querySelector('[data-export-data]')?.addEventListener('click', () => { const payload = { exportVersion: 1, exportedAt: new Date().toISOString(), app: 'repas-stock', data: state }; const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `repas-stock-sauvegarde-${today()}.json`; link.click(); URL.revokeObjectURL(link.href); notify('Données exportées.'); });
+  app.querySelector('[data-import-data]')?.addEventListener('click', () => app.querySelector('[data-import-file]')?.click());
+  app.querySelector('[data-import-file]')?.addEventListener('change', async (event) => { const file = event.target.files?.[0]; if (!file) return; try { const payload = JSON.parse(await file.text()); const imported = payload?.data || payload; if (!Array.isArray(imported.foods) || !Array.isArray(imported.stock) || !Array.isArray(imported.logs)) throw new Error('format'); if (!confirm('Remplacer les données de cet appareil par celles du fichier ?')) return; state = { ...imported, unitPreferences: imported.unitPreferences || {}, shoppingUnitPreferences: imported.shoppingUnitPreferences || {}, water: imported.water || {}, waterBottleSize: Number(imported.waterBottleSize) || 600 }; save(); notify('Données importées.'); } catch { notify('Fichier de données invalide.'); } finally { event.target.value = ''; } });
   app.querySelector('.food-composer .section-title')?.addEventListener('click', () => { journalComposerOpen = !journalComposerOpen; render(); });
   app.querySelector('[data-copy-journal]')?.addEventListener('click', async () => { if (await copyText(journalExportText())) notify('Apports journaliers copiés.'); else notify('Copie impossible dans ce navigateur.'); });
   app.querySelector('[data-export-journal]')?.addEventListener('click', () => { const blob = new Blob([journalExportText()], { type: 'text/plain;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'apports-journaliers.txt'; link.click(); URL.revokeObjectURL(link.href); notify('Apports journaliers extraits.'); });
@@ -557,10 +563,11 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-106');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-107');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
+
 
 
 
