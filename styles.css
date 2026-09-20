@@ -18,6 +18,11 @@
 .stock-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .stock-actions select { min-width: 74px; min-height: 42px; padding: 8px 10px; font-weight: 700; }
 .stock-create-button { width: 100%; }
+.cart-weight { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 4px; border-top: 1px solid #edf3ee; }
+.cart-macros { overflow: visible; }
+.cart-macros .donut-grid { width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cart-macros .donut-card { min-width: 0; overflow: visible; }
+.cart-macros .donut-card>b,.cart-macros .donut-card>strong,.cart-macros .donut-card>small { max-width: 100%; overflow-wrap: anywhere; }
 @media (max-width: 560px) { .water-controls .small { padding-inline: 8px; font-size: .8rem; } }
 .journal-export-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 10px 0; }
 @media (max-width: 560px) { .journal-export-actions { justify-content: stretch; } .journal-export-actions button { flex: 1; } }
