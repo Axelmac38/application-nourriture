@@ -246,8 +246,81 @@ function nav() {
   const labels = { journal: 'Journal', recettes: 'Recettes', stock: 'Stock', courses: 'Courses' };
   return `<nav>${Object.entries(labels).map(([id, label]) => `<button class="${view === id ? 'active' : ''}" data-view="${id}">${label}</button>`).join('')}</nav>`;
 }
+function exportPayload() {
+  return { exportVersion: 1, exportedAt: new Date().toISOString(), app: 'repas-stock', data: state };
+}
+function jsonNomenclature() {
+  return JSON.stringify({
+    foods: [{ id: 'custom-identifiant', name: 'Nom de l’aliment', category: 'Céréales', unit: 'g', stockUnit: 'g', kcal: 350, protein: 10, carbs: 70, fat: 3, stock: { quantity: 500, minimum: 100 } }],
+    recipes: [{ id: 'recipe-identifiant', name: 'Nom de la recette', ingredients: [{ foodId: 'custom-identifiant', grams: 100 }] }],
+    targets: { kcal: 1950, protein: 97, carbs: 243, fat: 65 },
+    _instructions: {
+      foods: 'Apports pour 100 g. unit décrit la saisie alimentaire ; stockUnit peut être g, kg ou unité.',
+      stock: 'Facultatif dans une entrée food grâce à stock, ou séparément avec foodId, quantity et minimum.',
+      partialImport: 'Pour un ajout partiel, ne fournir que les rubriques à modifier : foods, stock, recipes, logs, targets ou préférences.'
+    }
+  }, null, 2);
+}
+function importObject(payload) {
+  const imported = payload?.data || payload;
+  if (!imported || typeof imported !== 'object' || Array.isArray(imported)) throw new Error('format');
+  return imported;
+}
+function validatePartialData(imported, { full = false } = {}) {
+  const required = full ? ['foods', 'stock', 'logs'] : [];
+  required.forEach((key) => { if (!Array.isArray(imported[key])) throw new Error(`La rubrique ${key} est obligatoire.`); });
+  ['foods', 'stock', 'logs', 'recipes'].forEach((key) => {
+    if (imported[key] !== undefined && !Array.isArray(imported[key])) throw new Error(`La rubrique ${key} doit être un tableau.`);
+  });
+  if (imported.targets !== undefined && (typeof imported.targets !== 'object' || Array.isArray(imported.targets))) throw new Error('La rubrique targets doit être un objet.');
+  if (Array.isArray(imported.foods)) imported.foods.forEach((food) => {
+    if (!food || typeof food !== 'object' || !String(food.name || '').trim()) throw new Error('Chaque aliment doit avoir un nom.');
+    ['kcal', 'protein', 'carbs', 'fat'].forEach((key) => { if (!Number.isFinite(Number(food[key])) || Number(food[key]) < 0) throw new Error(`Valeur nutritionnelle invalide : ${key}.`); });
+  });
+  if (Array.isArray(imported.stock)) imported.stock.forEach((item) => { if (!item?.foodId || !Number.isFinite(Number(item.quantity)) || Number(item.quantity) < 0) throw new Error('Chaque stock doit avoir foodId et quantity.'); });
+  if (Array.isArray(imported.recipes)) imported.recipes.forEach((recipe) => { if (!recipe || !String(recipe.name || '').trim() || !Array.isArray(recipe.ingredients)) throw new Error('Recette invalide.'); });
+  return imported;
+}
+function mergeById(current, incoming, fallbackKey = 'id') {
+  const result = [...current];
+  incoming.forEach((item) => {
+    const key = item.id || item[fallbackKey];
+    const index = result.findIndex((existing) => (item.id && existing.id === item.id) || (!item.id && fallbackKey && existing[fallbackKey] === key));
+    if (index >= 0) result[index] = { ...result[index], ...item, id: result[index].id || item.id };
+    else result.push(item);
+  });
+  return result;
+}
+function normalizePartialFoods(foodEntries) {
+  const foods = [];
+  const stock = [];
+  foodEntries.forEach((entry) => {
+    const id = entry.id || `custom-${crypto.randomUUID()}`;
+    const { stock: embeddedStock, quantity, minimum, ...foodData } = entry;
+    foods.push({ ...foodData, id, name: String(foodData.name).trim(), category: foodData.category || 'Autres', unit: foodData.unit || 'g' });
+    const stockData = embeddedStock && typeof embeddedStock === 'object' ? embeddedStock : (quantity !== undefined ? { quantity, minimum } : null);
+    if (stockData) stock.push({ ...stockData, id: stockData.id || crypto.randomUUID(), foodId: id, quantity: Number(stockData.quantity) || 0, minimum: Number(stockData.minimum) || 0 });
+  });
+  return { foods, stock };
+}
+function applyPartialData(imported) {
+  const normalized = { ...imported };
+  if (Array.isArray(imported.foods)) {
+    const prepared = normalizePartialFoods(imported.foods);
+    normalized.foods = prepared.foods;
+    normalized.stock = [...(Array.isArray(imported.stock) ? imported.stock : []), ...prepared.stock];
+  }
+  if (Array.isArray(normalized.foods)) state.foods = mergeById(state.foods, normalized.foods);
+  if (Array.isArray(normalized.stock)) state.stock = mergeById(state.stock, normalized.stock, 'foodId');
+  if (Array.isArray(normalized.recipes)) state.recipes = mergeById(state.recipes || [], normalized.recipes);
+  if (Array.isArray(normalized.logs)) state.logs = mergeById(state.logs || [], normalized.logs);
+  ['targets', 'unitPreferences', 'shoppingUnitPreferences', 'water'].forEach((key) => { if (normalized[key] && typeof normalized[key] === 'object' && !Array.isArray(normalized[key])) state[key] = { ...(state[key] || {}), ...normalized[key] }; });
+  ['shopping', 'shoppingSelection', 'shoppingQuantities'].forEach((key) => { if (normalized[key] !== undefined) state[key] = normalized[key]; });
+  if (normalized.waterBottleSize !== undefined) state.waterBottleSize = Number(normalized.waterBottleSize) || 600;
+  if (normalized.defaultMeal) state.defaultMeal = normalized.defaultMeal;
+}
 function settings() {
-  return `<section class="hero"><p>RÉGLAGES</p><h1>Gérer tes données</h1><span>Exporte une sauvegarde pour la conserver ou me l’envoyer afin que je t’aide à la modifier.</span></section><section class="panel settings-panel"><h2>Sauvegarde</h2><p>Le fichier contient ton stock, tes repas, tes recettes, tes courses et tes préférences. Il reste sur ton appareil sauf si tu choisis de le partager.</p><div class="settings-actions"><button type="button" data-export-data>Exporter mes données</button><button type="button" class="secondary" data-import-data>Importer des données</button></div><input type="file" accept="application/json,.json" data-import-file hidden /><p class="hint">Après une modification de fichier, importe-le ici pour remplacer les données actuellement enregistrées sur cet appareil.</p></section>`;
+  return `<section class="hero"><p>RÉGLAGES</p><h1>Gérer tes données</h1><span>Exporte une sauvegarde pour la conserver ou me l’envoyer afin que je t’aide à la modifier.</span></section><section class="panel settings-panel"><h2>Sauvegarde complète</h2><p>Le fichier contient ton stock, tes repas, tes recettes, tes courses et tes préférences.</p><div class="settings-actions"><button type="button" data-export-data>Exporter mes données</button><button type="button" class="secondary" data-import-data>Importer un fichier</button></div><input type="file" accept="application/json,.json" data-import-file hidden /><p class="hint">L’importation complète remplace les données actuellement enregistrées sur cet appareil.</p></section><section class="panel settings-json-panel"><h2>Modifier ou importer du JSON</h2><p>Modifie le texte directement, ou colle le JSON préparé par une IA.</p><textarea data-json-editor spellcheck="false" aria-label="Éditeur JSON"></textarea><div class="settings-actions"><button type="button" class="secondary" data-load-json>Charger mes données</button><button type="button" class="secondary" data-copy-json>Copier le JSON</button><button type="button" class="secondary" data-copy-json-schema>Copier la nomenclature</button><button type="button" data-apply-json>Remplacer toutes les données</button><button type="button" data-apply-partial-json>Importer seulement cette partie</button></div><p class="hint">L’importation partielle fusionne uniquement les rubriques présentes. Pour créer un aliment avec son stock, ajoute <code>stock</code> dans l’objet de l’aliment.</p></section>`;
 }
 function journal() {
   const totals = totalToday();
@@ -437,9 +510,18 @@ function render() {
 }
 function bind() {
   app.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { const nextView = button.dataset.view; if (nextView === view) return; view = nextView; history.pushState({ repasStock: true, view }, '', `#${view}`); render(); }));
-  app.querySelector('[data-export-data]')?.addEventListener('click', () => { const payload = { exportVersion: 1, exportedAt: new Date().toISOString(), app: 'repas-stock', data: state }; const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `repas-stock-sauvegarde-${today()}.json`; link.click(); URL.revokeObjectURL(link.href); notify('Données exportées.'); });
+  app.querySelector('[data-export-data]')?.addEventListener('click', () => { const blob = new Blob([JSON.stringify(exportPayload(), null, 2)], { type: 'application/json;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `repas-stock-sauvegarde-${today()}.json`; link.click(); URL.revokeObjectURL(link.href); notify('Données exportées.'); });
   app.querySelector('[data-import-data]')?.addEventListener('click', () => app.querySelector('[data-import-file]')?.click());
-  app.querySelector('[data-import-file]')?.addEventListener('change', async (event) => { const file = event.target.files?.[0]; if (!file) return; try { const payload = JSON.parse(await file.text()); const imported = payload?.data || payload; if (!Array.isArray(imported.foods) || !Array.isArray(imported.stock) || !Array.isArray(imported.logs)) throw new Error('format'); if (!confirm('Remplacer les données de cet appareil par celles du fichier ?')) return; state = { ...imported, unitPreferences: imported.unitPreferences || {}, shoppingUnitPreferences: imported.shoppingUnitPreferences || {}, water: imported.water || {}, waterBottleSize: Number(imported.waterBottleSize) || 600, defaultMeal: imported.defaultMeal || 'Petit-déjeuner' }; save(); notify('Données importées.'); } catch { notify('Fichier de données invalide.'); } finally { event.target.value = ''; } });
+  app.querySelector('[data-import-file]')?.addEventListener('change', async (event) => { const file = event.target.files?.[0]; if (!file) return; try { const imported = validatePartialData(importObject(JSON.parse(await file.text())), { full: true }); if (!confirm('Remplacer les données de cet appareil par celles du fichier ?')) return; state = { ...imported, unitPreferences: imported.unitPreferences || {}, shoppingUnitPreferences: imported.shoppingUnitPreferences || {}, water: imported.water || {}, waterBottleSize: Number(imported.waterBottleSize) || 600, defaultMeal: imported.defaultMeal || 'Petit-déjeuner' }; save(); render(); notify('Données importées.'); } catch (error) { notify(error.message === 'format' ? 'Fichier de données invalide.' : `Import impossible : ${error.message}`); } finally { event.target.value = ''; } });
+  const jsonEditor = app.querySelector('[data-json-editor]');
+  if (jsonEditor) {
+    jsonEditor.value = JSON.stringify(exportPayload(), null, 2);
+    app.querySelector('[data-load-json]')?.addEventListener('click', () => { jsonEditor.value = JSON.stringify(exportPayload(), null, 2); notify('JSON actuel chargé dans l’éditeur.'); });
+    app.querySelector('[data-copy-json]')?.addEventListener('click', async () => { if (await copyText(jsonEditor.value)) notify('JSON copié.'); else notify('Copie impossible dans ce navigateur.'); });
+    app.querySelector('[data-copy-json-schema]')?.addEventListener('click', async () => { if (await copyText(jsonNomenclature())) notify('Nomenclature JSON copiée.'); else notify('Copie impossible dans ce navigateur.'); });
+    app.querySelector('[data-apply-json]')?.addEventListener('click', () => { try { const imported = validatePartialData(importObject(JSON.parse(jsonEditor.value)), { full: true }); if (!confirm('Remplacer toutes les données de cet appareil par le JSON édité ?')) return; state = { ...imported, unitPreferences: imported.unitPreferences || {}, shoppingUnitPreferences: imported.shoppingUnitPreferences || {}, water: imported.water || {}, waterBottleSize: Number(imported.waterBottleSize) || 600, defaultMeal: imported.defaultMeal || 'Petit-déjeuner' }; save(); render(); notify('JSON importé intégralement.'); } catch (error) { notify(`JSON invalide : ${error.message}`); } });
+    app.querySelector('[data-apply-partial-json]')?.addEventListener('click', () => { try { const imported = validatePartialData(importObject(JSON.parse(jsonEditor.value))); if (!confirm('Ajouter ou modifier uniquement les rubriques présentes dans ce JSON ?')) return; applyPartialData(imported); save(); render(); notify('Partie de JSON importée.'); } catch (error) { notify(`JSON invalide : ${error.message}`); } });
+  }
   app.querySelector('.food-composer .section-title')?.addEventListener('click', () => { journalComposerOpen = !journalComposerOpen; render(); });
   app.querySelector('[data-copy-journal]')?.addEventListener('click', async () => { if (await copyText(journalExportText())) notify('Apports journaliers copiés.'); else notify('Copie impossible dans ce navigateur.'); });
   app.querySelector('[data-export-journal]')?.addEventListener('click', () => { const blob = new Blob([journalExportText()], { type: 'text/plain;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'apports-journaliers.txt'; link.click(); URL.revokeObjectURL(link.href); notify('Apports journaliers extraits.'); });
@@ -565,7 +647,7 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-110');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-111');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
