@@ -5,6 +5,9 @@
 .water-slider-label { display: block; }
 .water-slider-label input { width: 100%; min-height: 32px; accent-color: #238bb0; touch-action: pan-y; cursor: grab; }
 .water-slider-label input:active { cursor: grabbing; }
+.water-slider-wrap { position: relative; padding-bottom: 18px; }
+.water-recommendation { position: absolute; left: 50%; bottom: 0; height: 14px; border-left: 3px solid #c83b3b; pointer-events: none; }
+.water-recommendation b { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); color: #c83b3b; font-size: .72rem; white-space: nowrap; }
 .water-bottle-controls { display: flex; align-items: end; gap: 12px; margin-top: 10px; }
 .water-bottle-controls label { flex: 1; }
 .water-bottle-controls input { width: 100%; }
