@@ -116,6 +116,27 @@ function targetCard(label, key, value, suffix) {
     : '<div class="donut metric-empty-donut" aria-label="Objectif non renseigné"><span>—</span></div>';
   return `<article class="metric metric-donut-card">${donut}<span>${label}</span><strong>${number(value)}${suffix}</strong>${target ? `<small>${number(Math.abs(target - value))}${suffix} ${value > target ? 'au-dessus' : 'restant'}</small>` : '<small>Objectif non renseigné</small>'}</article>`;
 }
+function periodDonuts(average) {
+  return [['kcal', 'Énergie', 'kcal'], ['protein', 'Protéines', 'g'], ['carbs', 'Glucides', 'g'], ['fat', 'Lipides', 'g']].map(([key, label, suffix]) => {
+    const target = Number(state.targets[key]);
+    const percent = target ? number((average[key] / target) * 100) : null;
+    const fill = percent === null ? 0 : Math.min(100, Math.max(0, percent));
+    return `<article class="donut-card period-donut-card"><div class="donut ${percent !== null && percent > 100 ? 'over-target' : ''}" style="--before:0%;--after:${fill}%;--overflow:0%"><span>${percent === null ? '—' : percent}<small>${percent === null ? '' : '%'}</small></span></div><b>${label}</b><strong>${number(average[key])} ${suffix}</strong><small>${percent === null ? 'Objectif non renseigné' : 'moyenne par jour'}</small></article>`;
+  }).join('');
+}
+function periodDialog(days = 7) {
+  const end = new Date(`${today()}T12:00:00`);
+  const dates = Array.from({ length: days }, (_, index) => { const date = new Date(end); date.setDate(end.getDate() - index); return date.toISOString().slice(0, 10); });
+  const daily = dates.map((date) => addNutrients(state.logs.filter((entry) => entry.date === date)));
+  const average = addNutrients(daily.map((item) => Object.fromEntries(Object.entries(item).map(([key, value]) => [key, value / days]))));
+  const recordedDays = daily.filter((item) => item.kcal || item.protein || item.carbs || item.fat).length;
+  return `<dialog open class="target-dialog period-dialog"><button class="close" type="button" data-close-period aria-label="Fermer">×</button><h2>Évolution de ta consommation</h2><label>Période<select name="period"><option value="7" ${days === 7 ? 'selected' : ''}>Cette semaine</option><option value="30" ${days === 30 ? 'selected' : ''}>Ce mois</option></select></label><p class="hint">Moyenne quotidienne sur ${days} jours · ${recordedDays} jour${recordedDays > 1 ? 's' : ''} enregistré${recordedDays > 1 ? 's' : ''}.</p><div class="donut-grid period-donut-grid">${periodDonuts(average)}</div><p class="hint">Les jours sans repas sont inclus dans la moyenne pour faire ressortir les manques réguliers.</p></dialog>`;
+}
+function bindPeriodDialog(dialog) {
+  if (!dialog) return;
+  dialog.querySelector('[data-close-period]').addEventListener('click', () => dialog.remove());
+  dialog.querySelector('select[name="period"]').addEventListener('change', (event) => { dialog.outerHTML = periodDialog(Number(event.target.value)); bindPeriodDialog(app.querySelector('.period-dialog')); });
+}
 function foodOptions(selectedFoodId = null) {
   const groups = new Map();
   state.foods.forEach((food) => groups.set(food.category || 'Autres', [...(groups.get(food.category || 'Autres') || []), food]));
@@ -190,7 +211,7 @@ function nav() {
 function journal() {
   const totals = totalToday();
   const logs = state.logs.filter((entry) => entry.date === today()).sort((a, b) => (MEAL_DISPLAY_ORDER[a.meal] ?? 99) - (MEAL_DISPLAY_ORDER[b.meal] ?? 99));
-  return `<section class="hero"><p>AUJOURD’HUI</p><h1>Ton journal alimentaire</h1><span>${new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</span></section>
+  return `<section class="hero"><p>AUJOURD’HUI</p><h1>Ton journal alimentaire</h1><button class="date-button" data-open-period>${new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())} ▾</button></section>
   <section class="metrics">${targetCard('Énergie', 'kcal', totals.kcal, ' kcal')}${targetCard('Protéines', 'protein', totals.protein, ' g')}${targetCard('Glucides', 'carbs', totals.carbs, ' g')}${targetCard('Lipides', 'fat', totals.fat, ' g')}</section>
   <button class="goals-button" data-action="open-targets"><span>Objectifs quotidiens</span><b>Définir ou modifier →</b></button>
   <section class="panel food-composer"><div class="section-title"><h2>Ajouter un aliment</h2><button class="link" type="button" data-toggle-food-composer aria-label="${journalComposerOpen ? 'Replier l’ajout d’aliment' : 'Afficher l’ajout d’aliment'}" title="${journalComposerOpen ? 'Replier' : 'Afficher'}">${journalComposerOpen ? '−' : '+'}</button></div>${journalComposerOpen ? `<form id="log-form" class="form-grid"><label>Repas<select name="meal"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Dîner</option><option>Collation</option></select></label><label>Aliment<input name="foodSearch" placeholder="Rechercher dans la liste…" autocomplete="off" /><select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><label class="checkbox-field"><input name="fromStock" type="checkbox" /> Prélevé du stock</label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}` : ''}</section>
@@ -347,6 +368,7 @@ function bind() {
   app.querySelectorAll('[data-edit-log]').forEach((button) => button.addEventListener('click', () => openLogEditor(button.dataset.editLog)));
   app.querySelectorAll('[data-log-row]').forEach((article) => article.addEventListener('dblclick', () => openLogEditor(article.dataset.logRow)));
   app.querySelector('[data-action="open-targets"]')?.addEventListener('click', () => { app.insertAdjacentHTML('beforeend', targets()); bindTargets(); });
+  app.querySelector('[data-open-period]')?.addEventListener('click', () => { app.insertAdjacentHTML('beforeend', periodDialog()); bindPeriodDialog(app.querySelector('.period-dialog')); });
   app.querySelector('[data-add-ingredient]')?.addEventListener('click', () => { app.querySelector('#ingredient-lines').insertAdjacentHTML('beforeend', ingredientLine()); });
   app.querySelector('#recipe-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodIds = data.getAll('foodId'); const grams = data.getAll('grams'); state.recipes.unshift({ id: crypto.randomUUID(), name: data.get('name'), ingredients: foodIds.map((foodId, index) => ({ foodId, grams: Number(grams[index]) })) }); save(); notify('Recette créée.'); });
   app.querySelectorAll('[data-edit-recipe]').forEach((button) => button.addEventListener('click', () => { recipeEditorId = button.dataset.editRecipe; render(); }));
@@ -442,7 +464,7 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-68');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-69');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
