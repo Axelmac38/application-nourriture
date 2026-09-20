@@ -29,10 +29,11 @@
 .quantity-controls input[type="number"]::-webkit-inner-spin-button,.quantity-controls input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .quantity-value { display: grid; place-items: center; width: 62px; min-width: 62px; min-height: 30px; padding: 4px; border: 1px solid #cfdfd3; border-radius: 8px; background: #fff; color: #17352d; font-size: .95rem; font-weight: 800; line-height: 1; }
 .quantity-step { flex: 0 0 30px; width: 30px; height: 30px; padding: 0; border-radius: 7px; font-size: .68rem; line-height: 1; background: #18745b; color: #fff; }
+.quantity-controls select { width: 58px; min-width: 58px; padding: 6px 4px; font-size: .82rem; }
 .shopping-summary article { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 10px; }
 .shopping-summary article > label { grid-column: 2; grid-row: 1; }
 .shopping-summary article > strong { grid-column: 2; grid-row: 2; justify-self: end; white-space: nowrap; }
-@media (max-width: 560px) { .shopping-summary article { gap: 8px; } .quantity-controls { gap: 4px; } .quantity-controls input,.quantity-value { width: 58px; min-width: 58px; } .quantity-step { flex-basis: 28px; width: 28px; height: 30px; } }
+@media (max-width: 560px) { .shopping-summary article { gap: 6px; grid-template-columns: minmax(0,1fr) auto; } .shopping-summary article > div b { font-size: .9rem; } .shopping-summary article > div small { display: none; } .quantity-controls { gap: 3px; padding: 2px; } .quantity-controls input,.quantity-value { width: 46px; min-width: 46px; min-height: 28px; font-size: .86rem; } .quantity-controls select { width: 50px; min-width: 50px; padding: 5px 2px; font-size: .75rem; } .quantity-step { flex-basis: 24px; width: 24px; height: 28px; font-size: .58rem; } }
 @media (max-width: 560px) { .water-controls .small { padding-inline: 8px; font-size: .8rem; } }
 .journal-export-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 10px 0; }
 @media (max-width: 560px) { .journal-export-actions { justify-content: stretch; } .journal-export-actions button { flex: 1; } }
