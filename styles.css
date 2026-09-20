@@ -2,6 +2,11 @@
 .water-tracker .section-title > span { color: var(--muted, #60766d); font-weight: 700; }
 .water-progress { height: 10px; margin: 12px 0; overflow: hidden; border-radius: 999px; background: #dcebe4; }
 .water-progress span { display: block; height: 100%; border-radius: inherit; background: #3ca6c2; transition: width .2s ease; }
+.water-slider-label { display: block; }
+.water-slider-label input { width: 100%; accent-color: #238bb0; }
+.water-bottle-controls { display: flex; align-items: end; gap: 12px; margin-top: 10px; }
+.water-bottle-controls label { flex: 1; }
+.water-bottle-controls input { width: 100%; }
 .water-controls { display: flex; align-items: end; gap: 10px; }
 .water-controls label { flex: 1; }
 .water-controls input { width: 100%; }

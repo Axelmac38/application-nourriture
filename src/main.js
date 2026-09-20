@@ -39,6 +39,7 @@ const app = document.querySelector('#app');
 let state = loadState();
 state.unitPreferences = state.unitPreferences || {};
 state.water = state.water || {};
+state.waterBottleSize = Number(state.waterBottleSize) || 600;
 let view = 'journal';
 let toast = '';
 let journalComposerOpen = false;
@@ -127,7 +128,7 @@ function waterTracker() {
   const consumed = Number(state.water[today()] || 0);
   const goal = 2000;
   const percent = Math.min(100, Math.round((consumed / goal) * 100));
-  return `<section class="panel water-tracker"><div class="section-title"><h2>Eau</h2><span>${consumed} ml / ${goal} ml</span></div><div class="water-progress"><span style="width:${percent}%"></span></div><div class="water-controls"><button class="small" type="button" data-water-change="-250">− 250 ml</button><label><span>Bu aujourd’hui (ml)</span><input type="number" min="0" step="50" value="${consumed}" data-water-amount /></label><button class="small" type="button" data-water-change="250">+ 250 ml</button></div><small>${percent}% de l’objectif quotidien indicatif</small></section>`;
+  return `<section class="panel water-tracker"><div class="section-title"><h2>Eau</h2><span>${consumed} ml / ${goal} ml</span></div><label class="water-slider-label"><span>Avancement</span><input type="range" min="0" max="5000" step="50" value="${consumed}" data-water-slider aria-label="Quantité d’eau bue aujourd’hui" /></label><div class="water-bottle-controls"><label><span>Taille de ma gourde (ml)</span><input type="number" min="50" step="50" value="${state.waterBottleSize}" data-water-bottle-size /></label><button class="small" type="button" data-add-water-bottle>＋ Ajouter une gourde</button></div><small>${percent}% de l’objectif quotidien indicatif</small></section>`;
 }
 function targetCard(label, key, value, suffix) {
   const target = Number(state.targets[key]);
@@ -395,6 +396,9 @@ function bind() {
   app.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { const nextView = button.dataset.view; if (nextView === view) return; view = nextView; history.pushState({ repasStock: true, view }, '', `#${view}`); render(); }));
   app.querySelector('.food-composer .section-title')?.addEventListener('click', () => { journalComposerOpen = !journalComposerOpen; render(); });
   app.querySelector('[data-water-amount]')?.addEventListener('change', (event) => { state.water[today()] = Math.max(0, Number(event.target.value) || 0); save(); render(); });
+  app.querySelector('[data-water-slider]')?.addEventListener('input', (event) => { state.water[today()] = Math.max(0, Number(event.target.value) || 0); save(); render(); });
+  app.querySelector('[data-water-bottle-size]')?.addEventListener('change', (event) => { state.waterBottleSize = Math.max(50, Number(event.target.value) || 600); save(); render(); });
+  app.querySelector('[data-add-water-bottle]')?.addEventListener('click', () => { state.water[today()] = Math.max(0, Number(state.water[today()] || 0) + state.waterBottleSize); save(); render(); });
   app.querySelectorAll('[data-water-change]').forEach((button) => button.addEventListener('click', () => { state.water[today()] = Math.max(0, Number(state.water[today()] || 0) + Number(button.dataset.waterChange)); save(); render(); }));
   app.querySelector('#log-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodId = data.get('foodId'); const grams = Number(data.get('grams')); addLog(foodId, grams, data.get('meal')); if (data.get('fromStock')) removeFromStock(foodId, grams); save(); notify(data.get('fromStock') ? 'Aliment ajouté et stock diminué.' : 'Aliment ajouté au journal.'); });
   app.querySelector('#log-form input[name="foodSearch"]')?.addEventListener('input', updateFoodSearch);
@@ -504,8 +508,9 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-75');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-76');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
+
 
