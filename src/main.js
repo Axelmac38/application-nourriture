@@ -366,6 +366,9 @@ function shoppingExportText(items) {
 function stockExportText() {
   return state.stock.map((item) => { const unit = preferredUnit(item.foodId, state.foods.find((food) => food.id === item.foodId)?.stockUnit || 'g'); const shown = quantityForDisplay(item.foodId, item.quantity, unit); return `- ${foodName(state, item.foodId)} : ${number(shown.value)} ${unit}`; }).join('\n');
 }
+function stockExportDetailedText() {
+  return state.stock.map((item) => { const food = state.foods.find((entry) => entry.id === item.foodId); const unit = preferredUnit(item.foodId, food?.stockUnit || 'g'); const shown = quantityForDisplay(item.foodId, item.quantity, unit); return `- ${foodName(state, item.foodId)} : ${number(shown.value)} ${unit}\n  Pour 100 g : ${number(food?.kcal)} kcal · ${number(food?.protein)} g protéines · ${number(food?.carbs)} g glucides · ${number(food?.fat)} g lipides`; }).join('\n');
+}
 async function copyText(text) {
   if (navigator.clipboard?.writeText) {
     try { await navigator.clipboard.writeText(text); return true; } catch { /* fallback below */ }
@@ -477,6 +480,8 @@ function bind() {
   app.querySelector('[data-copy-shopping]')?.addEventListener('click', async (event) => { event.preventDefault(); event.stopPropagation(); const currentItems = selectedShoppingItems(state.priceRecords || PRICE_RECORDS); if (await copyText(shoppingExportText(currentItems))) notify('Liste de courses copiée.'); else notify('Copie impossible dans ce navigateur.'); });
   app.querySelector('[data-export-shopping]')?.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); const currentItems = selectedShoppingItems(state.priceRecords || PRICE_RECORDS); const blob = new Blob([shoppingExportText(currentItems)], { type: 'text/plain;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'liste-de-courses.txt'; link.click(); URL.revokeObjectURL(link.href); notify('Liste de courses extraite.'); });
   app.querySelector('[data-copy-stock]')?.addEventListener('click', async () => { if (await copyText(stockExportText())) notify('Stock copié.'); else notify('Copie impossible dans ce navigateur.'); });
+  const stockCopyButton = app.querySelector('[data-copy-stock]');
+  if (stockCopyButton && !app.querySelector('[data-copy-stock-plus]')) { const plus = document.createElement('button'); plus.type = 'button'; plus.className = 'small'; plus.dataset.copyStockPlus = ''; plus.textContent = 'Copier +'; stockCopyButton.insertAdjacentElement('afterend', plus); plus.addEventListener('click', async () => { if (await copyText(stockExportDetailedText())) notify('Stock et apports copiés.'); else notify('Copie impossible dans ce navigateur.'); }); }
   app.querySelector('[data-export-stock]')?.addEventListener('click', () => { const blob = new Blob([stockExportText()], { type: 'text/plain;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'stock-actuel.txt'; link.click(); URL.revokeObjectURL(link.href); notify('Stock extrait.'); });
   app.querySelectorAll('[data-price-food]').forEach((form) => form.addEventListener('submit', (event) => { event.preventDefault(); const food = state.foods.find((item) => item.id === form.dataset.priceFood); const price = Number(new FormData(form).get('price')); if (!food || !Number.isFinite(price) || price < 0) return; food.price = price; food.priceHistory = [...(food.priceHistory || []), { date: today(), price }]; save(); notify('Prix mis à jour.'); }));
 }
@@ -552,10 +557,11 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-105');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-106');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
+
 
 
 
