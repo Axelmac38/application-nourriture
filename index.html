@@ -72,12 +72,12 @@
       .shopping-export-actions .small { padding: 6px 8px; }
       .quantity-controls input { min-width: 0; }
       .quantity-controls select { width: auto; padding: 7px; }
-      .cart-donut-card { display: flex; min-width: 0; min-height: 148px; padding: 10px 5px 8px; overflow: hidden; }
-      .cart-donut-card .donut { width: 94px; height: 94px; margin-bottom: 5px; }
-      .cart-donut-card .donut::after { width: 68px; height: 68px; }
+      .cart-donut-card { display: flex; min-width: 0; min-height: 142px; padding: 7px 4px; overflow: visible; }
+      .cart-donut-card .donut { flex: 0 0 68px; width: 68px; height: 68px; margin-bottom: 4px; }
+      .cart-donut-card .donut::after { width: 50px; height: 50px; }
       .cart-donut-card .donut span { font-size: .9rem; }
-      .cart-donut-card > b { font-size: .68rem; margin-top: 2px; }
-      .cart-donut-card > strong { font-size: .68rem; margin-top: 1px; }
+      .cart-donut-card > b { flex: 0 0 auto; width: 100%; font-size: .72rem; margin-top: 2px; white-space: nowrap; }
+      .cart-donut-card > strong { flex: 0 0 auto; font-size: .7rem; margin-top: 2px; }
       .cart-donut-card > small { font-size: .58rem; margin-top: 1px; }
       .log-list article > div:first-child { flex: 1; min-width: 0; }
       .log-list article { display: grid; grid-template-columns: minmax(0, 1fr) 88px auto; align-items: center; justify-content: initial; }
@@ -91,9 +91,10 @@
       .metric-donut-card strong { margin: 3px 0; }
       .metric-empty-donut { background: #e7f0e9; }
     </style>
-    <script type="module" src="./src/main.js?v=20260920-102"></script>
+    <script type="module" src="./src/main.js?v=20260920-103"></script>
   </body>
 </html>
+
 
 
 
