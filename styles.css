@@ -25,6 +25,8 @@
 .cart-macros .donut-card>b,.cart-macros .donut-card>strong,.cart-macros .donut-card>small { max-width: 100%; overflow-wrap: anywhere; }
 .quantity-controls { display: inline-flex; align-items: center; gap: 9px; }
 .quantity-controls input { width: 68px; min-width: 68px; text-align: center; }
+.quantity-controls input[type="number"] { display: inline-block; color: #17352d !important; background: #fbfdfb; opacity: 1; font-size: 1rem; line-height: 1.2; padding: 8px 4px; -webkit-appearance: textfield; appearance: textfield; }
+.quantity-controls input[type="number"]::-webkit-inner-spin-button,.quantity-controls input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .quantity-step { flex: 0 0 38px; width: 38px; height: 42px; padding: 0; border-radius: 9px; font-size: .8rem; }
 .shopping-summary article { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 10px; }
 .shopping-summary article > label { grid-column: 2; grid-row: 1; }
