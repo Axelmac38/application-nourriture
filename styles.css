@@ -3,7 +3,8 @@
 .water-progress { height: 10px; margin: 12px 0; overflow: hidden; border-radius: 999px; background: #dcebe4; }
 .water-progress span { display: block; height: 100%; border-radius: inherit; background: #3ca6c2; transition: width .2s ease; }
 .water-slider-label { display: block; }
-.water-slider-label input { width: 100%; accent-color: #238bb0; }
+.water-slider-label input { width: 100%; min-height: 32px; accent-color: #238bb0; touch-action: pan-y; cursor: grab; }
+.water-slider-label input:active { cursor: grabbing; }
 .water-bottle-controls { display: flex; align-items: end; gap: 12px; margin-top: 10px; }
 .water-bottle-controls label { flex: 1; }
 .water-bottle-controls input { width: 100%; }

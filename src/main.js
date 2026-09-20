@@ -400,7 +400,7 @@ function bind() {
   app.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { const nextView = button.dataset.view; if (nextView === view) return; view = nextView; history.pushState({ repasStock: true, view }, '', `#${view}`); render(); }));
   app.querySelector('.food-composer .section-title')?.addEventListener('click', () => { journalComposerOpen = !journalComposerOpen; render(); });
   app.querySelector('[data-water-amount]')?.addEventListener('change', (event) => { state.water[today()] = Math.max(0, Number(event.target.value) || 0); save(); render(); });
-  app.querySelector('[data-water-slider]')?.addEventListener('input', (event) => { state.water[today()] = Math.max(0, Number(event.target.value) || 0); save(); render(); });
+  app.querySelector('[data-water-slider]')?.addEventListener('change', (event) => { state.water[today()] = Math.max(0, Number(event.target.value) || 0); save(); render(); });
   app.querySelector('[data-water-bottle-size]')?.addEventListener('change', (event) => { state.waterBottleSize = Math.max(50, Number(event.target.value) || 600); save(); render(); });
   app.querySelector('[data-add-water-bottle]')?.addEventListener('click', () => { state.water[today()] = Math.max(0, Number(state.water[today()] || 0) + state.waterBottleSize); save(); render(); });
   app.querySelectorAll('[data-water-change]').forEach((button) => button.addEventListener('click', () => { state.water[today()] = Math.max(0, Number(state.water[today()] || 0) + Number(button.dataset.waterChange)); save(); render(); }));
@@ -514,10 +514,11 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-77');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-78');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
+
 
 
 
