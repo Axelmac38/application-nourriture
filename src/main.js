@@ -243,7 +243,7 @@ function testMealLogs(foods) {
   });
 }
 function nav() {
-  const labels = { journal: 'Journal', recettes: 'Recettes', stock: 'Stock', courses: 'Courses', parametres: 'Paramètres' };
+  const labels = { journal: 'Journal', recettes: 'Recettes', stock: 'Stock', courses: 'Courses' };
   return `<nav>${Object.entries(labels).map(([id, label]) => `<button class="${view === id ? 'active' : ''}" data-view="${id}">${label}</button>`).join('')}</nav>`;
 }
 function settings() {
@@ -432,7 +432,7 @@ function ingredientLine(item = null, removable = false) {
 }
 function render() {
   const content = view === 'journal' ? journal() : view === 'recettes' ? recipes() : view === 'stock' ? stock() : view === 'courses' ? shopping() : settings();
-  app.innerHTML = `<header><a href="#" class="brand">repas<span>&</span>stock</a></header>${content}${nav()}${toast ? `<div class="toast">${toast}</div>` : ''}`;
+  app.innerHTML = `<header><a href="#" class="brand">repas<span>&</span>stock</a><button class="settings-gear ${view === 'parametres' ? 'active' : ''}" type="button" data-view="parametres" aria-label="Ouvrir les paramètres" title="Paramètres">⚙</button></header>${content}${nav()}${toast ? `<div class="toast">${toast}</div>` : ''}`;
   bind();
 }
 function bind() {
@@ -565,10 +565,11 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-108');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-109');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
+
 
 
 

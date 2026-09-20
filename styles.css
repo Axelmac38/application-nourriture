@@ -36,6 +36,8 @@
 @media (max-width: 560px) { .shopping-summary article { gap: 6px; grid-template-columns: minmax(0,1fr) auto; } .shopping-summary article > div { grid-column: 1; grid-row: 1; } .shopping-summary article > label { grid-column: 1 / -1; grid-row: 2; justify-self: start; } .shopping-summary article > strong { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; margin: 0; } .shopping-summary article > div b { font-size: .9rem; } .shopping-summary article > div small { display: none; } .quantity-controls { gap: 3px; padding: 2px; } .quantity-controls input,.quantity-value { width: 46px; min-width: 46px; min-height: 28px; font-size: .86rem; } .quantity-controls select { width: 50px; min-width: 50px; padding: 5px 2px; font-size: .75rem; } .quantity-step { flex-basis: 24px; width: 24px; height: 28px; font-size: .58rem; } }
 @media (max-width: 560px) { .water-controls .small { padding-inline: 8px; font-size: .8rem; } }
 .journal-export-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 10px 0; }
+.settings-gear { width: 36px; height: 36px; padding: 0; border-radius: 50%; background: #eaf4ed; color: #18745b; font-size: 1.25rem; line-height: 1; }
+.settings-gear.active { background: #18745b; color: #fff; }
 .settings-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .settings-actions .secondary { background: #eaf4ed; color: #18745b; }
 @media (max-width: 560px) { .journal-export-actions { justify-content: stretch; } .journal-export-actions button { flex: 1; } }
