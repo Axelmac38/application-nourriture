@@ -23,6 +23,9 @@
 .cart-macros .donut-grid { width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .cart-macros .donut-card { min-width: 0; overflow: visible; }
 .cart-macros .donut-card>b,.cart-macros .donut-card>strong,.cart-macros .donut-card>small { max-width: 100%; overflow-wrap: anywhere; }
+.quantity-controls { display: inline-flex; align-items: center; gap: 4px; }
+.quantity-controls input { width: 82px; }
+.quantity-step { width: 34px; height: 34px; padding: 0; border-radius: 8px; font-size: .75rem; }
 @media (max-width: 560px) { .water-controls .small { padding-inline: 8px; font-size: .8rem; } }
 .journal-export-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 10px 0; }
 @media (max-width: 560px) { .journal-export-actions { justify-content: stretch; } .journal-export-actions button { flex: 1; } }
