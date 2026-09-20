@@ -37,6 +37,7 @@ const PRICE_MEASURES = {
 const STOCK_PURCHASE_QUANTITIES = { rice: 1000, pasta: 1000, 'lentils-red': 450, 'lentils-green': 500, oats: 1000, flour: 1000, emmental: 500, mayonnaise: 500, egg: 20 };
 const app = document.querySelector('#app');
 let state = loadState();
+state.unitPreferences = state.unitPreferences || {};
 let view = 'journal';
 let toast = '';
 let journalComposerOpen = false;
@@ -49,6 +50,7 @@ function loadState() {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (!saved?.foods) {
       const next = emptyState();
+      next.unitPreferences = {};
       next.logs = testMealLogs(next.foods);
       next.recipes = sampleRecipes();
       next.testMealVersion = TEST_MEAL_VERSION;
@@ -61,6 +63,7 @@ function loadState() {
     }
     const knownIds = new Set(saved.foods.map((food) => food.id));
     const next = { ...saved, foods: [...saved.foods, ...SAMPLE_FOODS.filter((food) => !knownIds.has(food.id))] };
+    next.unitPreferences = next.unitPreferences || {};
     next.foods.forEach((food) => { const catalogFood = SAMPLE_FOODS.find((item) => item.id === food.id); if (catalogFood?.price) Object.assign(food, { price: catalogFood.price, priceQuantity: catalogFood.priceQuantity, priceUnit: catalogFood.priceUnit }); });
     if (next.sampleRecipesVersion !== SAMPLE_RECIPES_VERSION) {
       next.recipes = [...(next.recipes || []), ...sampleRecipes().filter((recipe) => !(next.recipes || []).some((item) => item.id === recipe.id))];
@@ -102,6 +105,19 @@ function sampleRecipes() {
   ];
 }
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function preferredUnit(foodId, fallback = 'g') {
+  const food = state.foods.find((item) => item.id === foodId);
+  if (food?.stockUnit === 'unité') return 'unité';
+  return state.unitPreferences?.[foodId] || fallback;
+}
+function quantityForDisplay(foodId, grams, fallback = 'g') {
+  const unit = preferredUnit(foodId, fallback);
+  const value = Number(grams) || 0;
+  return { value: unit === 'kg' ? value / 1000 : value, unit };
+}
+function quantityFromDisplay(foodId, value, unit) {
+  return Number(value) * (unit === 'kg' ? 1000 : 1);
+}
 function today() { return new Date().toISOString().slice(0, 10); }
 function number(value) { return Math.round(Number(value || 0) * 10) / 10; }
 function notify(message) { toast = message; render(); setTimeout(() => { toast = ''; render(); }, 2600); }
@@ -154,7 +170,8 @@ function foodAmountLabel(foodId, grams, fallbackName = null) {
     const eggs = number(Number(grams) / 50);
     return `${eggs} œuf${eggs === 1 ? '' : 's'}`;
   }
-  return `${fallbackName || foodName(state, foodId)} · ${grams} g`;
+  const display = quantityForDisplay(foodId, grams);
+  return `${fallbackName || foodName(state, foodId)} · ${number(display.value)} ${display.unit}`;
 }
 function removeFromStock(foodId, grams) {
   const food = state.foods.find((item) => item.id === foodId);
@@ -237,21 +254,23 @@ function recipeCookDialog(recipe) {
 function stockFormDefaults(foodId) {
   const food = state.foods.find((item) => item.id === foodId);
   const existing = state.stock.find((item) => item.foodId === foodId);
-  const unit = food?.stockUnit || 'g';
-  const quantity = STOCK_PURCHASE_QUANTITIES[foodId] || (unit === 'unité' ? 1 : 100);
-  return { quantity, minimum: existing?.minimum ?? Math.max(1, Math.round(quantity / 4)), unit };
+  const unit = preferredUnit(foodId, food?.stockUnit || 'g');
+  const baseQuantity = existing?.quantity ?? STOCK_PURCHASE_QUANTITIES[foodId] ?? (unit === 'unité' ? 1 : 100);
+  const baseMinimum = existing?.minimum ?? Math.max(1, Math.round(baseQuantity / 4));
+  return { quantity: unit === 'kg' ? baseQuantity / 1000 : baseQuantity, minimum: unit === 'kg' ? baseMinimum / 1000 : baseMinimum, unit };
 }
 function stock() {
   const initial = stockFormDefaults(state.foods[0]?.id);
   return `<section class="hero"><p>PLACARDS</p><h1>Ce qu’il reste à la maison</h1></section>
   <section class="panel"><details class="custom-food-details"><summary>Créer un nouvel aliment</summary><form id="custom-food-form" class="form-grid"><label>Nom<input name="name" required placeholder="Ex. poudre d’amande" /></label><label>Catégorie<input name="category" value="Autres" required /></label><label>Énergie pour 100 g<input name="kcal" type="number" min="0" step="0.1" required /></label><label>Protéines pour 100 g<input name="protein" type="number" min="0" step="0.1" required /></label><label>Glucides pour 100 g<input name="carbs" type="number" min="0" step="0.1" required /></label><label>Lipides pour 100 g<input name="fat" type="number" min="0" step="0.1" required /></label><label>Quantité initiale (g)<input name="quantity" type="number" min="0" step="1" required /></label><label>Alerte sous (g)<input name="minimum" type="number" min="0" step="1" required /></label><button>Créer et ajouter au stock</button></form></details></section>
   <section class="panel"><h2>Ajouter au stock</h2><form id="stock-form" class="form-grid"><label>Aliment<select name="foodId">${foodOptions()}</select></label><label><span data-stock-quantity-label>Quantité (${initial.unit})</span><input name="quantity" type="number" min="0" value="${initial.quantity}" required /></label><label><span data-stock-minimum-label>Alerte sous (${initial.unit})</span><input name="minimum" type="number" min="0" value="${initial.minimum}" required /></label><button>Ajouter</button></form></section>
-  <section class="panel"><h2>Stock actuel</h2>${state.stock.length ? `<div class="stock-list">${state.stock.map((item) => { const food = state.foods.find((entry) => entry.id === item.foodId); const unit = food?.stockUnit || 'g'; const step = unit === 'unité' ? 1 : 50; return `<article class="${Number(item.quantity) <= Number(item.minimum) ? 'low' : ''}" data-edit-stock="${item.id}" title="Double-cliquer pour modifier la quantité"><div><b>${foodName(state, item.foodId)}</b><span>${item.quantity} ${unit}${item.quantity > 1 && unit === 'unité' ? 's' : ''} disponibles · seuil ${item.minimum} ${unit}${item.minimum > 1 && unit === 'unité' ? 's' : ''}</span></div><div class="stock-actions"><button class="small" data-adjust-stock="${item.id}" data-change="-${step}">− ${step} ${unit}</button><button class="small" data-adjust-stock="${item.id}" data-change="${step}">+ ${step} ${unit}</button></div></article>`; }).join('')}</div>` : '<p class="empty">Le stock est vide.</p>'}</section>`;
+  <section class="panel"><h2>Stock actuel</h2>${state.stock.length ? `<div class="stock-list">${state.stock.map((item) => { const food = state.foods.find((entry) => entry.id === item.foodId); const unit = preferredUnit(item.foodId, food?.stockUnit || 'g'); const shown = quantityForDisplay(item.foodId, item.quantity, unit); const threshold = quantityForDisplay(item.foodId, item.minimum, unit); const step = unit === 'unité' ? 1 : unit === 'kg' ? 0.05 : 50; const delta = unit === 'kg' ? step * 1000 : step; return `<article class="${Number(item.quantity) <= Number(item.minimum) ? 'low' : ''}" data-edit-stock="${item.id}" title="Double-cliquer pour modifier la quantité"><div><b>${foodName(state, item.foodId)}</b><span>${number(shown.value)} ${unit}${shown.value > 1 && unit === 'unité' ? 's' : ''} disponibles · seuil ${number(threshold.value)} ${unit}${threshold.value > 1 && unit === 'unité' ? 's' : ''}</span></div><div class="stock-actions"><button class="small" data-adjust-stock="${item.id}" data-change="-${delta}">− ${step} ${unit}</button><button class="small" data-adjust-stock="${item.id}" data-change="${delta}">+ ${step} ${unit}</button></div></article>`; }).join('')}</div>` : '<p class="empty">Le stock est vide.</p>'}</section>`;
 }
 function stockEditor(item) {
   const food = state.foods.find((entry) => entry.id === item.foodId);
-  const unit = food?.stockUnit || 'g';
-  return `<dialog open class="target-dialog"><form id="stock-editor-form" data-stock-id="${item.id}"><button class="close" type="button" data-close-stock-editor aria-label="Fermer">×</button><h2>Modifier le stock</h2><p>${foodName(state, item.foodId)}</p><label>Quantité disponible (${unit})<input name="quantity" type="number" min="0" step="${unit === 'unité' ? 1 : 1}" value="${item.quantity}" required /></label><button class="save-targets">Enregistrer</button></form></dialog>`;
+  const unit = preferredUnit(item.foodId, food?.stockUnit || 'g');
+  const shown = quantityForDisplay(item.foodId, item.quantity, unit);
+  return `<dialog open class="target-dialog"><form id="stock-editor-form" data-stock-id="${item.id}" data-stock-unit="${unit}"><button class="close" type="button" data-close-stock-editor aria-label="Fermer">×</button><h2>Modifier le stock</h2><p>${foodName(state, item.foodId)}</p><label>Quantité disponible (${unit})<input name="quantity" type="number" min="0" step="${unit === 'unité' ? 1 : unit === 'kg' ? 0.1 : 1}" value="${shown.value}" required /></label><button class="save-targets">Enregistrer</button></form></dialog>`;
 }
 function priceMeasure(name) {
   const grams = PRICE_MEASURES[name];
@@ -314,7 +333,8 @@ function selectedShoppingItems(history) {
   });
 }
 function shoppingQuantityDisplay(item) {
-  if (item.unit !== 'g') return { value: item.quantity, unit: item.unit };
+  const preferred = item.food ? preferredUnit(item.food.id, item.unit) : item.unit;
+  if (preferred !== 'g') return { value: preferred === 'kg' ? item.quantity / 1000 : item.quantity, unit: preferred };
   return item.quantity >= 1000 ? { value: number(item.quantity / 1000), unit: 'kg' } : { value: item.quantity, unit: 'g' };
 }
 function shoppingExportText(items) {
@@ -386,7 +406,7 @@ function bind() {
   app.querySelector('#recipe-edit-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodIds = data.getAll('foodId'); const grams = data.getAll('grams'); const recipe = state.recipes.find((item) => item.id === event.target.dataset.recipeId); if (!recipe) return; recipe.name = data.get('name').trim(); recipe.ingredients = foodIds.map((foodId, index) => ({ foodId, grams: Number(grams[index]) })).filter((item) => item.foodId && item.grams > 0); save(); recipeEditorId = null; notify('Recette modifiée.'); });
   app.querySelector('[data-delete-recipe]')?.addEventListener('click', (event) => { if (!confirm('Supprimer définitivement cette recette ?')) return; state.recipes = state.recipes.filter((recipe) => recipe.id !== event.currentTarget.dataset.deleteRecipe); save(); recipeEditorId = null; notify('Recette supprimée.'); });
   app.querySelectorAll('[data-cook]').forEach((button) => button.addEventListener('click', () => { const recipe = state.recipes.find((item) => item.id === button.dataset.cook); if (!recipe) return; app.insertAdjacentHTML('beforeend', recipeCookDialog(recipe)); const dialog = app.querySelector('#recipe-cook-form')?.closest('dialog'); dialog?.querySelectorAll('[data-close-cook-dialog]').forEach((close) => close.addEventListener('click', () => dialog.remove())); dialog?.querySelector('#recipe-cook-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const entries = recipe.ingredients.map((ingredient) => { const food = state.foods.find((item) => item.id === ingredient.foodId); const grams = Number(ingredient.grams); return food && Number.isFinite(grams) && grams > 0 ? { id: crypto.randomUUID(), date: today(), meal: data.get('meal'), name: foodAmountLabel(food.id, grams, food.name), foodId: food.id, grams, ...nutrientsFor(food, grams) } : null; }).filter(Boolean); state.logs.unshift(...entries); if (data.get('fromStock')) recipe.ingredients.forEach((ingredient) => removeFromStock(ingredient.foodId, ingredient.grams)); save(); dialog.remove(); view = 'journal'; notify(`${recipe.name} ajoutée par ingrédients au journal.`); }); }));
-  app.querySelector('#stock-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const existing = state.stock.find((item) => item.foodId === data.get('foodId')); if (existing) { existing.quantity += Number(data.get('quantity')); existing.minimum = Number(data.get('minimum')); } else { state.stock.push({ id: crypto.randomUUID(), foodId: data.get('foodId'), quantity: Number(data.get('quantity')), minimum: Number(data.get('minimum')) }); } save(); notify('Stock mis à jour.'); });
+  app.querySelector('#stock-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodId = data.get('foodId'); const unit = preferredUnit(foodId, 'g'); const quantity = quantityFromDisplay(foodId, Number(data.get('quantity')), unit); const minimum = quantityFromDisplay(foodId, Number(data.get('minimum')), unit); const existing = state.stock.find((item) => item.foodId === foodId); if (existing) { existing.quantity += quantity; existing.minimum = minimum; } else { state.stock.push({ id: crypto.randomUUID(), foodId, quantity, minimum }); } save(); notify('Stock mis à jour.'); });
   app.querySelector('#custom-food-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const name = data.get('name').trim(); if (state.foods.some((food) => food.name.toLocaleLowerCase('fr') === name.toLocaleLowerCase('fr'))) { notify('Cet aliment existe déjà.'); return; } const foodId = `custom-${crypto.randomUUID()}`; state.foods.push({ id: foodId, name, category: data.get('category').trim() || 'Autres', unit: 'g', kcal: Number(data.get('kcal')), protein: Number(data.get('protein')), carbs: Number(data.get('carbs')), fat: Number(data.get('fat')) }); state.stock.push({ id: crypto.randomUUID(), foodId, quantity: Number(data.get('quantity')), minimum: Number(data.get('minimum')) }); save(); notify(`${name} créé et ajouté au stock.`); });
   app.querySelector('#stock-form select[name="foodId"]')?.addEventListener('change', updateStockFormDefaults);
   app.querySelectorAll('[data-adjust-stock]').forEach((button) => button.addEventListener('click', () => { const item = state.stock.find((stock) => stock.id === button.dataset.adjustStock); item.quantity = Math.max(0, Number(item.quantity) + Number(button.dataset.change)); save(); render(); }));
@@ -398,7 +418,7 @@ function bind() {
   app.querySelectorAll('[data-remove-price-product]').forEach((button) => button.addEventListener('click', () => { state.priceRecords = state.priceRecords.filter((item) => item.name !== button.dataset.removePriceProduct); save(); render(); }));
   app.querySelectorAll('[data-select-price]').forEach((input) => input.addEventListener('change', () => { rememberOpenShoppingCategories(); state.shoppingSelection = state.shoppingSelection || []; state.shoppingQuantities = state.shoppingQuantities || {}; if (input.checked && !state.shoppingQuantities[input.dataset.selectPrice]) state.shoppingQuantities[input.dataset.selectPrice] = purchaseSpec(input.dataset.selectPrice).quantity; state.shoppingSelection = input.checked ? [...new Set([...state.shoppingSelection, input.dataset.selectPrice])] : state.shoppingSelection.filter((name) => name !== input.dataset.selectPrice); save(); render(); }));
   app.querySelectorAll('[data-shopping-quantity]').forEach((input) => input.addEventListener('change', () => { state.shoppingQuantities = state.shoppingQuantities || {}; const unit = app.querySelector(`[data-shopping-unit="${CSS.escape(input.dataset.shoppingQuantity)}"]`)?.value || 'g'; const value = Math.max(1, Number(input.value) || 1); state.shoppingQuantities[input.dataset.shoppingQuantity] = unit === 'kg' ? value * 1000 : value; save(); render(); }));
-  app.querySelectorAll('[data-shopping-unit]').forEach((select) => select.addEventListener('change', () => { const input = app.querySelector(`[data-shopping-quantity="${CSS.escape(select.dataset.shoppingUnit)}"]`); if (input) { const current = Number(input.value) || 1; input.value = select.value === 'kg' ? number(current / 1000) : Math.max(1, number(current * 1000)); } }));
+  app.querySelectorAll('[data-shopping-unit]').forEach((select) => select.addEventListener('change', () => { const name = select.dataset.shoppingUnit; const item = selectedShoppingItems(state.priceRecords || PRICE_RECORDS).find((entry) => entry.name === name); if (item?.food) { state.unitPreferences[item.food.id] = select.value; save(); render(); return; } const input = app.querySelector(`[data-shopping-quantity="${CSS.escape(name)}"]`); if (input) { const current = Number(input.value) || 1; input.value = select.value === 'kg' ? number(current / 1000) : Math.max(1, number(current * 1000)); } }));
   app.querySelector('[data-copy-shopping]')?.addEventListener('click', async () => { try { await navigator.clipboard.writeText(shoppingExportText(selectedItems)); notify('Liste de courses copiée.'); } catch { notify('Copie impossible dans ce navigateur.'); } });
   app.querySelector('[data-export-shopping]')?.addEventListener('click', () => { const blob = new Blob([shoppingExportText(selectedItems)], { type: 'text/plain;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'liste-de-courses.txt'; link.click(); URL.revokeObjectURL(link.href); notify('Liste de courses extraite.'); });
   app.querySelectorAll('[data-price-food]').forEach((form) => form.addEventListener('submit', (event) => { event.preventDefault(); const food = state.foods.find((item) => item.id === form.dataset.priceFood); const price = Number(new FormData(form).get('price')); if (!food || !Number.isFinite(price) || price < 0) return; food.price = price; food.priceHistory = [...(food.priceHistory || []), { date: today(), price }]; save(); notify('Prix mis à jour.'); }));
@@ -475,7 +495,7 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-73');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-74');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
