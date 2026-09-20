@@ -128,9 +128,10 @@ function periodDialog(days = 7) {
   const end = new Date(`${today()}T12:00:00`);
   const dates = Array.from({ length: days }, (_, index) => { const date = new Date(end); date.setDate(end.getDate() - index); return date.toISOString().slice(0, 10); });
   const daily = dates.map((date) => addNutrients(state.logs.filter((entry) => entry.date === date)));
-  const average = addNutrients(daily.map((item) => Object.fromEntries(Object.entries(item).map(([key, value]) => [key, value / days]))));
   const recordedDays = daily.filter((item) => item.kcal || item.protein || item.carbs || item.fat).length;
-  return `<dialog open class="target-dialog period-dialog"><button class="close" type="button" data-close-period aria-label="Fermer">×</button><h2>Évolution de ta consommation</h2><label>Période<select name="period"><option value="7" ${days === 7 ? 'selected' : ''}>Cette semaine</option><option value="30" ${days === 30 ? 'selected' : ''}>Ce mois</option></select></label><p class="hint">Moyenne quotidienne sur ${days} jours · ${recordedDays} jour${recordedDays > 1 ? 's' : ''} enregistré${recordedDays > 1 ? 's' : ''}.</p><div class="donut-grid period-donut-grid">${periodDonuts(average)}</div><p class="hint">Les jours sans repas sont inclus dans la moyenne pour faire ressortir les manques réguliers.</p></dialog>`;
+  const averageDays = recordedDays || 1;
+  const average = addNutrients(daily.map((item) => Object.fromEntries(Object.entries(item).map(([key, value]) => [key, value / averageDays]))));
+  return `<dialog open class="target-dialog period-dialog"><button class="close" type="button" data-close-period aria-label="Fermer">×</button><h2>Évolution de ta consommation</h2><label>Période<select name="period"><option value="7" ${days === 7 ? 'selected' : ''}>Cette semaine</option><option value="30" ${days === 30 ? 'selected' : ''}>Ce mois</option></select></label><p class="hint">Moyenne sur les ${recordedDays} jour${recordedDays > 1 ? 's' : ''} avec repas enregistré${recordedDays > 1 ? 's' : ''}.</p><div class="donut-grid period-donut-grid">${periodDonuts(average)}</div><p class="hint">Les jours sans repas ne sont pas pris en compte.</p></dialog>`;
 }
 function bindPeriodDialog(dialog) {
   if (!dialog) return;
@@ -464,7 +465,7 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-69');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-70');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
