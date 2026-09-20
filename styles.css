@@ -13,3 +13,5 @@
 .water-controls input { width: 100%; }
 .water-tracker > small { display: block; margin-top: 10px; color: var(--muted, #60766d); }
 @media (max-width: 560px) { .water-controls .small { padding-inline: 8px; font-size: .8rem; } }
+.journal-export-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 10px 0; }
+@media (max-width: 560px) { .journal-export-actions { justify-content: stretch; } .journal-export-actions button { flex: 1; } }
