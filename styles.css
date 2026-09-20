@@ -23,15 +23,15 @@
 .cart-macros .donut-grid { width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .cart-macros .donut-card { min-width: 0; overflow: visible; }
 .cart-macros .donut-card>b,.cart-macros .donut-card>strong,.cart-macros .donut-card>small { max-width: 100%; overflow-wrap: anywhere; }
-.quantity-controls { display: inline-flex; align-items: center; gap: 9px; }
-.quantity-controls input { width: 68px; min-width: 68px; text-align: center; }
+.quantity-controls { display: inline-flex; align-items: center; gap: 5px; padding: 3px; border: 1px solid #d8e7dc; border-radius: 12px; background: #f5faf6; }
+.quantity-controls input { width: 62px; min-width: 62px; text-align: center; }
 .quantity-controls input[type="number"] { display: inline-block; color: #17352d !important; background: #fbfdfb; opacity: 1; font-size: 1rem; line-height: 1.2; padding: 8px 4px; -webkit-appearance: textfield; appearance: textfield; }
 .quantity-controls input[type="number"]::-webkit-inner-spin-button,.quantity-controls input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.quantity-step { flex: 0 0 38px; width: 38px; height: 42px; padding: 0; border-radius: 9px; font-size: .8rem; }
+.quantity-step { flex: 0 0 30px; width: 30px; height: 30px; padding: 0; border-radius: 7px; font-size: .68rem; line-height: 1; background: #18745b; color: #fff; }
 .shopping-summary article { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 10px; }
 .shopping-summary article > label { grid-column: 2; grid-row: 1; }
 .shopping-summary article > strong { grid-column: 2; grid-row: 2; justify-self: end; white-space: nowrap; }
-@media (max-width: 560px) { .shopping-summary article { gap: 8px; } .quantity-controls { gap: 6px; } .quantity-controls input { width: 64px; min-width: 64px; } .quantity-step { flex-basis: 36px; width: 36px; } }
+@media (max-width: 560px) { .shopping-summary article { gap: 8px; } .quantity-controls { gap: 4px; } .quantity-controls input { width: 58px; min-width: 58px; } .quantity-step { flex-basis: 28px; width: 28px; height: 30px; } }
 @media (max-width: 560px) { .water-controls .small { padding-inline: 8px; font-size: .8rem; } }
 .journal-export-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 10px 0; }
 @media (max-width: 560px) { .journal-export-actions { justify-content: stretch; } .journal-export-actions button { flex: 1; } }
