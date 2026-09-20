@@ -311,7 +311,7 @@ function priceChart(name, records) {
   if (records.length < 2) return '<p class="empty">Un seul relevé pour le moment.</p>';
   const prices = records.map((item) => normalisedPrice(name, item.price));
   const min = Math.min(...prices); const max = Math.max(...prices); const span = max - min || 1;
-  const coordinates = records.map((item, index) => ({ x: (index / (records.length - 1)) * 228 + 34, y: 92 - ((item.price - min) / span) * 62 }));
+  const coordinates = records.map((item, index) => ({ x: (index / (records.length - 1)) * 228 + 34, y: 92 - ((prices[index] - min) / span) * 62 }));
   const points = coordinates.map(({ x, y }) => `${x},${y}`).join(' ');
   const suffix = priceMeasure(name).unit === 'g' ? ' €/kg' : ' €';
   return `<div class="price-chart-wrap"><svg class="price-chart" viewBox="0 0 280 120" role="img" aria-label="Évolution du prix"><line x1="34" y1="30" x2="262" y2="30"/><line x1="34" y1="61" x2="262" y2="61"/><line x1="34" y1="92" x2="262" y2="92"/><text x="3" y="34">${max.toFixed(2)}${suffix}</text><text x="3" y="96">${min.toFixed(2)}${suffix}</text><polyline points="${points}"/>${coordinates.map(({ x, y }) => `<circle cx="${x}" cy="${y}" r="4"/>`).join('')}</svg><small>${prices[0].toFixed(2)}${suffix} → ${prices.at(-1).toFixed(2)}${suffix}</small></div>`;
@@ -552,10 +552,11 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-103');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-104');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
+
 
 
 
