@@ -135,7 +135,7 @@ function periodDialog(days = 7) {
 }
 function bindPeriodDialog(dialog) {
   if (!dialog) return;
-  dialog.querySelector('[data-close-period]').addEventListener('click', () => dialog.remove());
+  dialog.querySelector('[data-close-period]').addEventListener('click', () => { app.classList.remove('period-open'); dialog.remove(); });
   dialog.querySelector('select[name="period"]').addEventListener('change', (event) => { dialog.outerHTML = periodDialog(Number(event.target.value)); bindPeriodDialog(app.querySelector('.period-dialog')); });
 }
 function foodOptions(selectedFoodId = null) {
@@ -369,7 +369,7 @@ function bind() {
   app.querySelectorAll('[data-edit-log]').forEach((button) => button.addEventListener('click', () => openLogEditor(button.dataset.editLog)));
   app.querySelectorAll('[data-log-row]').forEach((article) => article.addEventListener('dblclick', () => openLogEditor(article.dataset.logRow)));
   app.querySelector('[data-action="open-targets"]')?.addEventListener('click', () => { app.insertAdjacentHTML('beforeend', targets()); bindTargets(); });
-  app.querySelector('[data-open-period]')?.addEventListener('click', () => { app.insertAdjacentHTML('beforeend', periodDialog()); bindPeriodDialog(app.querySelector('.period-dialog')); });
+  app.querySelector('[data-open-period]')?.addEventListener('click', () => { app.classList.add('period-open'); app.insertAdjacentHTML('beforeend', periodDialog()); bindPeriodDialog(app.querySelector('.period-dialog')); });
   app.querySelector('[data-add-ingredient]')?.addEventListener('click', () => { app.querySelector('#ingredient-lines').insertAdjacentHTML('beforeend', ingredientLine()); });
   app.querySelector('#recipe-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodIds = data.getAll('foodId'); const grams = data.getAll('grams'); state.recipes.unshift({ id: crypto.randomUUID(), name: data.get('name'), ingredients: foodIds.map((foodId, index) => ({ foodId, grams: Number(grams[index]) })) }); save(); notify('Recette créée.'); });
   app.querySelectorAll('[data-edit-recipe]').forEach((button) => button.addEventListener('click', () => { recipeEditorId = button.dataset.editRecipe; render(); }));
@@ -465,7 +465,7 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-71');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-72');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
