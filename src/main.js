@@ -40,6 +40,7 @@ let state = loadState();
 state.unitPreferences = state.unitPreferences || {};
 state.water = state.water || {};
 state.waterBottleSize = Number(state.waterBottleSize) || 600;
+state.shoppingUnitPreferences = state.shoppingUnitPreferences || {};
 let view = 'journal';
 let toast = '';
 let journalComposerOpen = false;
@@ -351,7 +352,7 @@ function selectedShoppingItems(history) {
     const quantity = Number(state.shoppingQuantities?.[name] || spec.quantity);
     const food = state.foods.find((item) => item.id === spec.foodId);
     const nutrients = food && spec.unit === 'g' ? nutrientsFor(food, quantity) : { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-    return { name, latest, quantity, baseQuantity: spec.quantity, unit: spec.unit, food: food && spec.unit === 'g' ? food : null, nutrients };
+     return { name, latest, quantity, baseQuantity: spec.quantity, unit: state.shoppingUnitPreferences[name] || spec.unit, food: food && spec.unit === 'g' ? food : null, nutrients };
   });
 }
 function shoppingQuantityDisplay(item) {
@@ -471,7 +472,8 @@ function bind() {
   app.querySelectorAll('[data-select-price]').forEach((input) => input.addEventListener('change', () => { rememberOpenShoppingCategories(); state.shoppingSelection = state.shoppingSelection || []; state.shoppingQuantities = state.shoppingQuantities || {}; if (input.checked && !state.shoppingQuantities[input.dataset.selectPrice]) state.shoppingQuantities[input.dataset.selectPrice] = purchaseSpec(input.dataset.selectPrice).quantity; state.shoppingSelection = input.checked ? [...new Set([...state.shoppingSelection, input.dataset.selectPrice])] : state.shoppingSelection.filter((name) => name !== input.dataset.selectPrice); save(); render(); }));
   app.querySelectorAll('[data-shopping-quantity]').forEach((input) => input.addEventListener('change', () => { state.shoppingQuantities = state.shoppingQuantities || {}; const unit = app.querySelector(`[data-shopping-unit="${CSS.escape(input.dataset.shoppingQuantity)}"]`)?.value || 'g'; const value = Math.max(1, Number(input.value) || 1); state.shoppingQuantities[input.dataset.shoppingQuantity] = unit === 'kg' ? value * 1000 : value; save(); render(); }));
   app.querySelectorAll('[data-shopping-step]').forEach((button) => button.addEventListener('click', () => { const input = app.querySelector(`[data-shopping-quantity="${CSS.escape(button.dataset.shoppingName)}"]`); if (!input) return; const step = Number(input.step) || 1; input.value = Math.max(1, Number(input.value || 1) + Number(button.dataset.shoppingStep) * step); input.dispatchEvent(new Event('change', { bubbles: true })); }));
-  app.querySelectorAll('[data-shopping-unit]').forEach((select) => select.addEventListener('change', () => { const name = select.dataset.shoppingUnit; const item = selectedShoppingItems(state.priceRecords || PRICE_RECORDS).find((entry) => entry.name === name); if (item?.food) { state.unitPreferences[item.food.id] = select.value; save(); render(); return; } const input = app.querySelector(`[data-shopping-quantity="${CSS.escape(name)}"]`); if (input) { const current = Number(input.value) || 1; input.value = select.value === 'kg' ? number(current / 1000) : Math.max(1, number(current * 1000)); } }));
+  app.querySelectorAll('.shopping-summary .quantity-controls > span').forEach((span) => { const name = span.closest('label')?.querySelector('[data-shopping-quantity]')?.dataset.shoppingQuantity; if (!name) return; const select = document.createElement('select'); select.dataset.shoppingUnit = name; ['g', 'kg', 'unité'].forEach((unit) => { const option = new Option(unit, unit); if (unit === span.textContent.trim()) option.selected = true; select.add(option); }); span.replaceWith(select); });
+  app.querySelectorAll('[data-shopping-unit]').forEach((select) => { if (![...select.options].some((option) => option.value === 'unité')) select.add(new Option('unité', 'unité')); select.addEventListener('change', () => { const name = select.dataset.shoppingUnit; const item = selectedShoppingItems(state.priceRecords || PRICE_RECORDS).find((entry) => entry.name === name); if (item?.food) state.unitPreferences[item.food.id] = select.value; else state.shoppingUnitPreferences[name] = select.value; save(); render(); }); });
   app.querySelector('[data-copy-shopping]')?.addEventListener('click', async (event) => { event.preventDefault(); event.stopPropagation(); const currentItems = selectedShoppingItems(state.priceRecords || PRICE_RECORDS); if (await copyText(shoppingExportText(currentItems))) notify('Liste de courses copiée.'); else notify('Copie impossible dans ce navigateur.'); });
   app.querySelector('[data-export-shopping]')?.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); const currentItems = selectedShoppingItems(state.priceRecords || PRICE_RECORDS); const blob = new Blob([shoppingExportText(currentItems)], { type: 'text/plain;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'liste-de-courses.txt'; link.click(); URL.revokeObjectURL(link.href); notify('Liste de courses extraite.'); });
   app.querySelector('[data-copy-stock]')?.addEventListener('click', async () => { if (await copyText(stockExportText())) notify('Stock copié.'); else notify('Copie impossible dans ce navigateur.'); });
@@ -550,10 +552,11 @@ function updateFoodSearch(event) {
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-90');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-91');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
+
 
 
 
