@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addNutrients, emptyState, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from '../src/domain.js';
+import { addNutrients, emptyState, gramsForQuantity, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from '../src/domain.js';
 
 test('inclut une sélection de fruits, protéines, légumes et produits laitiers', () => {
   assert.ok(SAMPLE_FOODS.length >= 25);
@@ -16,6 +16,10 @@ test('contient les valeurs de la whey configurée à partir du paquet', () => {
 
 test('calcule les nutriments au prorata', () => {
   assert.deepEqual(nutrientsFor({ kcal: 100, protein: 10, carbs: 20, fat: 5 }, 150), { kcal: 150, protein: 15, carbs: 30, fat: 7.5 });
+});
+test('convertit une quantité comptée à l’unité en grammes nutritionnels', () => {
+  assert.equal(gramsForQuantity({ stockUnit: 'unité', unitWeight: 130 }, 2), 260);
+  assert.equal(gramsForQuantity({ stockUnit: 'g', unitWeight: 130 }, 260), 260);
 });
 test('additionne les apports', () => {
   assert.deepEqual(addNutrients([{ kcal: 10, protein: 2 }, { kcal: 20, carbs: 3, fat: 1 }]), { kcal: 30, protein: 2, carbs: 3, fat: 1 });

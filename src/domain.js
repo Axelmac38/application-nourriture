@@ -67,6 +67,12 @@ export function nutrientsFor(food, grams) {
   }, {});
 }
 
+export function gramsForQuantity(food, quantity) {
+  const value = Number(quantity) || 0;
+  const unitWeight = Number(food?.unitWeight);
+  return food?.stockUnit === 'unité' && Number.isFinite(unitWeight) && unitWeight > 0 ? value * unitWeight : value;
+}
+
 export function addNutrients(items) {
   return items.reduce((total, item) => ['kcal', 'protein', 'carbs', 'fat'].reduce((next, key) => {
     next[key] += Number(item[key] || 0);

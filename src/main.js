@@ -1,4 +1,4 @@
-import { addNutrients, emptyState, foodName, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260919-43';
+import { addNutrients, emptyState, foodName, gramsForQuantity, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260922-01';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
@@ -42,6 +42,7 @@ state.water = state.water || {};
 state.waterBottleSize = Number(state.waterBottleSize) || 600;
 state.shoppingUnitPreferences = state.shoppingUnitPreferences || {};
 state.defaultMeal = state.defaultMeal || 'Petit-déjeuner';
+state.defaultFoodId = state.defaultFoodId || state.foods[0]?.id;
 let view = 'journal';
 let toast = '';
 let journalComposerOpen = false;
@@ -179,6 +180,15 @@ function foodOptions(selectedFoodId = null) {
   state.foods.forEach((food) => groups.set(food.category || 'Autres', [...(groups.get(food.category || 'Autres') || []), food]));
   return [...groups.entries()].map(([category, foods]) => `<optgroup label="${category}">${foods.map((food) => `<option value="${food.id}" ${food.id === selectedFoodId ? 'selected' : ''}>${food.name}</option>`).join('')}</optgroup>`).join('');
 }
+function addToStock(foodId, grams) {
+  const food = state.foods.find((item) => item.id === foodId);
+  const stock = state.stock.find((item) => item.foodId === foodId);
+  if (!food || !stock) return;
+  const restored = food.stockUnit === 'unité'
+    ? (Number(food.unitWeight) > 0 ? Number(grams) / Number(food.unitWeight) : Number(grams) / 50)
+    : Number(grams);
+  stock.quantity = Number(stock.quantity) + restored;
+}
 function mealOptions(selectedMeal) {
   return ['Petit-déjeuner', 'Déjeuner', 'Dîner', 'Collation', 'Repas'].map((meal) => `<option ${meal === selectedMeal ? 'selected' : ''}>${meal}</option>`).join('');
 }
@@ -190,6 +200,11 @@ function foodAmountLabel(foodId, grams, fallbackName = null) {
     const eggs = number(Number(grams) / 50);
     return `${eggs} œuf${eggs === 1 ? '' : 's'}`;
   }
+  const food = state.foods.find((item) => item.id === foodId);
+  if (food?.stockUnit === 'unité' && Number(food.unitWeight) > 0) {
+    const units = number(Number(grams) / Number(food.unitWeight));
+    return `${fallbackName || food.name} · ${units} unité${units === 1 ? '' : 's'}`;
+  }
   const display = quantityForDisplay(foodId, grams);
   return `${fallbackName || foodName(state, foodId)} · ${number(display.value)} ${display.unit}`;
 }
@@ -197,7 +212,9 @@ function removeFromStock(foodId, grams) {
   const food = state.foods.find((item) => item.id === foodId);
   const stock = state.stock.find((item) => item.foodId === foodId);
   if (!food || !stock) return;
-  const consumed = food.stockUnit === 'unité' ? Number(grams) / 50 : Number(grams);
+  const consumed = food.stockUnit === 'unité'
+    ? (Number(food.unitWeight) > 0 ? Number(grams) / Number(food.unitWeight) : Number(grams) / 50)
+    : Number(grams);
   stock.quantity = Math.max(0, Number(stock.quantity) - consumed);
 }
 
@@ -207,7 +224,8 @@ function foodSearchOptions() {
 function foodPreview(foodId, grams) {
   const food = state.foods.find((item) => item.id === foodId);
   if (!food || !Number(grams)) return '';
-  const addition = nutrientsFor(food, grams);
+  const nutritionGrams = gramsForQuantity(food, grams);
+  const addition = nutrientsFor(food, nutritionGrams);
   const current = totalToday();
   const macroEnergy = addition.protein * 4 + addition.carbs * 4 + addition.fat * 9;
   const macroShare = macroEnergy ? { protein: Math.round((addition.protein * 4 / macroEnergy) * 100), fat: Math.round((addition.fat * 9 / macroEnergy) * 100), carbs: Math.round((addition.carbs * 4 / macroEnergy) * 100) } : null;
@@ -224,12 +242,14 @@ function foodPreview(foodId, grams) {
     return `<article class="donut-card"><div class="donut ${overflowPercent ? 'over-target' : ''}" style="--before:${beforePercent}%;--after:${afterPercent}%;--overflow:${overflowPercent}%" aria-label="${label} : ${actualPercent} % de l’objectif après ajout"><span>${actualPercent}<small>%</small></span></div><b>${label}</b><strong>+${number(addition[key])}${suffix}</strong><small>${status}</small></article>`;
   }).join('');
   const distribution = macroShare ? `<div class="macro-share"><b>Répartition de l’apport</b><div class="macro-bar"><i style="width:${macroShare.protein}%"></i><i style="width:${macroShare.fat}%"></i><i style="width:${macroShare.carbs}%"></i></div><small><span>Protéines ${macroShare.protein}%</span><span>Lipides ${macroShare.fat}%</span><span>Glucides ${macroShare.carbs}%</span></small></div>` : '';
- return `<aside id="food-preview" class="food-preview"><h3>Effet avant ajout</h3><p><b>${food.name}</b> · ${grams} g</p>${distribution}<div class="donut-grid">${charts}</div></aside>`;
+  const quantityUnit = food.stockUnit === 'unité' && Number(food.unitWeight) > 0 ? 'unité' : 'g';
+ return `<aside id="food-preview" class="food-preview"><h3>Effet avant ajout</h3><p><b>${food.name}</b> · ${grams} ${quantityUnit}</p>${distribution}<div class="donut-grid">${charts}</div></aside>`;
 }
-function addLog(foodId, grams, meal = 'Petit-déjeuner', name = null) {
+function addLog(foodId, quantity, meal = 'Petit-déjeuner', name = null, fromStock = false) {
   const food = state.foods.find((item) => item.id === foodId);
   if (!food) return;
-  state.logs.unshift({ id: crypto.randomUUID(), date: today(), meal, name: name || food.name, grams, foodId, ...nutrientsFor(food, grams) });
+  const grams = gramsForQuantity(food, quantity);
+  state.logs.unshift({ id: crypto.randomUUID(), date: today(), meal, name: name || food.name, grams, foodId, fromStock, ...nutrientsFor(food, grams) });
 }
 function testMealLogs(foods) {
   const entries = [
@@ -251,11 +271,11 @@ function exportPayload() {
 }
 function jsonNomenclature() {
   return JSON.stringify({
-    foods: [{ id: 'custom-identifiant', name: 'Nom de l’aliment', category: 'Céréales', unit: 'g', stockUnit: 'g', kcal: 350, protein: 10, carbs: 70, fat: 3, stock: { quantity: 500, minimum: 100 } }],
+    foods: [{ id: 'custom-identifiant', name: 'Nom de l’aliment', category: 'Céréales', unit: 'g', stockUnit: 'g', kcal: 350, protein: 10, carbs: 70, fat: 3, stock: { quantity: 500, minimum: 100 } }, { id: 'aliment-a-l-unite', name: 'Aliment compté à l’unité', category: 'Fruits', unit: 'g', stockUnit: 'unité', unitWeight: 130, kcal: 47, protein: 0.9, carbs: 11.8, fat: 0.1, stock: { quantity: 2, minimum: 0 } }],
     recipes: [{ id: 'recipe-identifiant', name: 'Nom de la recette', ingredients: [{ foodId: 'custom-identifiant', grams: 100 }] }],
     targets: { kcal: 1950, protein: 97, carbs: 243, fat: 65 },
     _instructions: {
-      foods: 'Apports pour 100 g. unit décrit la saisie alimentaire ; stockUnit peut être g, kg ou unité.',
+      foods: 'Apports pour 100 g. unit décrit la saisie alimentaire ; stockUnit peut être g, kg ou unité. Pour un aliment compté à l’unité, unitWeight indique le poids nutritionnel approximatif d’une unité en grammes.',
       stock: 'Facultatif dans une entrée food grâce à stock, ou séparément avec foodId, quantity et minimum.',
       partialImport: 'Pour un ajout partiel, ne fournir que les rubriques à modifier : foods, stock, recipes, logs, targets ou préférences.'
     }
@@ -318,6 +338,7 @@ function applyPartialData(imported) {
   ['shopping', 'shoppingSelection', 'shoppingQuantities'].forEach((key) => { if (normalized[key] !== undefined) state[key] = normalized[key]; });
   if (normalized.waterBottleSize !== undefined) state.waterBottleSize = Number(normalized.waterBottleSize) || 600;
   if (normalized.defaultMeal) state.defaultMeal = normalized.defaultMeal;
+  if (normalized.defaultFoodId) state.defaultFoodId = normalized.defaultFoodId;
 }
 function settings() {
   return `<section class="hero"><p>RÉGLAGES</p><h1>Gérer tes données</h1><span>Exporte une sauvegarde pour la conserver ou me l’envoyer afin que je t’aide à la modifier.</span></section><section class="panel settings-panel"><h2>Sauvegarde complète</h2><p>Le fichier contient ton stock, tes repas, tes recettes, tes courses et tes préférences.</p><div class="settings-actions"><button type="button" data-export-data>Exporter mes données</button><button type="button" class="secondary" data-import-data>Importer un fichier</button></div><input type="file" accept="application/json,.json" data-import-file hidden /><p class="hint">L’importation complète remplace les données actuellement enregistrées sur cet appareil.</p></section><section class="panel settings-json-panel"><h2>Modifier ou importer du JSON</h2><p>Modifie le texte directement, ou colle le JSON préparé par une IA.</p><textarea data-json-editor spellcheck="false" aria-label="Éditeur JSON"></textarea><div class="settings-actions"><button type="button" class="secondary" data-load-json>Charger mes données</button><button type="button" class="secondary" data-copy-json>Copier le JSON</button><button type="button" class="secondary" data-copy-json-schema>Copier la nomenclature</button><button type="button" data-apply-json>Remplacer toutes les données</button><button type="button" data-apply-partial-json>Importer seulement cette partie</button></div><p class="hint">L’importation partielle fusionne uniquement les rubriques présentes. Pour créer un aliment avec son stock, ajoute <code>stock</code> dans l’objet de l’aliment.</p></section>`;
@@ -325,10 +346,12 @@ function settings() {
 function journal() {
   const totals = totalToday();
   const logs = state.logs.filter((entry) => entry.date === today()).sort((a, b) => (MEAL_DISPLAY_ORDER[a.meal] ?? 99) - (MEAL_DISPLAY_ORDER[b.meal] ?? 99));
+  const initialFood = state.foods.find((food) => food.id === state.defaultFoodId) || state.foods[0];
+  const initialQuantity = initialFood?.stockUnit === 'unité' && Number(initialFood.unitWeight) > 0 ? 1 : 100;
   return `<section class="hero"><p>AUJOURD’HUI</p><h1>Ton journal alimentaire</h1><button class="date-button" data-open-period>${new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())} ▾</button></section>
   <div class="journal-export-actions"><button class="small" type="button" data-copy-journal>Copier mes apports</button><button class="small" type="button" data-export-journal>Extraire mes apports</button></div><section class="metrics">${targetCard('Énergie', 'kcal', totals.kcal, ' kcal')}${targetCard('Protéines', 'protein', totals.protein, ' g')}${targetCard('Glucides', 'carbs', totals.carbs, ' g')}${targetCard('Lipides', 'fat', totals.fat, ' g')}</section>
   <button class="goals-button" data-action="open-targets"><span>Objectifs quotidiens</span><b>Définir ou modifier →</b></button>${waterTracker()}
-  <section class="panel food-composer"><div class="section-title"><h2>Ajouter un aliment</h2><button class="link" type="button" data-toggle-food-composer aria-label="${journalComposerOpen ? 'Replier l’ajout d’aliment' : 'Afficher l’ajout d’aliment'}" title="${journalComposerOpen ? 'Replier' : 'Afficher'}">${journalComposerOpen ? '−' : '+'}</button></div>${journalComposerOpen ? `<form id="log-form" class="form-grid"><label>Repas<select name="meal">${mealOptions(state.defaultMeal)}</select></label><label>Aliment<input name="foodSearch" placeholder="Rechercher dans la liste…" autocomplete="off" /><select name="foodId">${foodOptions()}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="100" required /></label><label class="checkbox-field"><input name="fromStock" type="checkbox" /> Prélevé du stock</label><button>Ajouter</button></form>${foodPreview(state.foods[0]?.id, 100)}` : ''}</section>
+  <section class="panel food-composer"><div class="section-title"><h2>Ajouter un aliment</h2><button class="link" type="button" data-toggle-food-composer aria-label="${journalComposerOpen ? 'Replier l’ajout d’aliment' : 'Afficher l’ajout d’aliment'}" title="${journalComposerOpen ? 'Replier' : 'Afficher'}">${journalComposerOpen ? '−' : '+'}</button></div>${journalComposerOpen ? `<form id="log-form" class="form-grid"><label>Repas<select name="meal">${mealOptions(state.defaultMeal)}</select></label><label>Aliment<input name="foodSearch" placeholder="Rechercher dans la liste…" autocomplete="off" /><select name="foodId">${foodOptions(state.defaultFoodId)}</select></label><label data-quantity-label>Quantité (g / unité)<input name="grams" type="number" min="1" value="${initialQuantity}" required /></label><label class="checkbox-field"><input name="fromStock" type="checkbox" /> Prélevé du stock</label><button>Ajouter</button></form>${foodPreview(initialFood?.id, initialQuantity)}` : ''}</section>
   <section class="panel"><h2>Repas enregistrés</h2>${logs.length ? `<div class="log-list">${logs.map((entry) => `<article data-log-row="${entry.id}" title="Double-cliquer pour modifier"><div><b>${entry.meal}</b><span>${foodAmountLabel(entry.foodId, entry.grams, entry.name)}</span></div><strong>${entry.kcal} kcal</strong><div class="log-actions"><button class="small" data-edit-log="${entry.id}">Modifier</button><button class="icon" data-remove-log="${entry.id}" aria-label="Supprimer">×</button></div></article>`).join('')}</div>` : '<p class="empty">Aucun repas enregistré pour aujourd’hui.</p>'}</section>`;
 }
 function recipes() {
@@ -367,7 +390,8 @@ function stockEditor(item) {
   const food = state.foods.find((entry) => entry.id === item.foodId);
   const unit = preferredUnit(item.foodId, food?.stockUnit || 'g');
   const shown = quantityForDisplay(item.foodId, item.quantity, unit);
-  return `<dialog open class="target-dialog"><form id="stock-editor-form" data-stock-id="${item.id}" data-stock-unit="${unit}" data-food-id="${item.foodId}"><button class="close" type="button" data-close-stock-editor aria-label="Fermer">×</button><h2>Modifier l’aliment et le stock</h2><label>Nom<input name="name" value="${food?.name || ''}" required /></label><label>Énergie pour 100 g<input name="kcal" type="number" min="0" step="0.1" value="${food?.kcal ?? 0}" required /></label><label>Protéines pour 100 g<input name="protein" type="number" min="0" step="0.1" value="${food?.protein ?? 0}" required /></label><label>Glucides pour 100 g<input name="carbs" type="number" min="0" step="0.1" value="${food?.carbs ?? 0}" required /></label><label>Lipides pour 100 g<input name="fat" type="number" min="0" step="0.1" value="${food?.fat ?? 0}" required /></label><label>Quantité disponible (${unit})<input name="quantity" type="number" min="0" step="${unit === 'unité' ? 1 : unit === 'kg' ? 0.1 : 1}" value="${shown.value}" required /></label><button class="save-targets">Enregistrer</button></form></dialog>`;
+  const unitWeightField = food?.stockUnit === 'unité' ? `<label>Poids moyen d’une unité pour les nutriments (g)<input name="unitWeight" type="number" min="1" step="1" value="${food?.unitWeight ?? ''}" required /><small>Cette valeur sert à calculer les apports quand tu saisis une quantité en unités.</small></label>` : '';
+  return `<dialog open class="target-dialog"><form id="stock-editor-form" data-stock-id="${item.id}" data-stock-unit="${unit}" data-food-id="${item.foodId}"><button class="close" type="button" data-close-stock-editor aria-label="Fermer">×</button><h2>Modifier l’aliment et le stock</h2><label>Nom<input name="name" value="${food?.name || ''}" required /></label><label>Énergie pour 100 g<input name="kcal" type="number" min="0" step="0.1" value="${food?.kcal ?? 0}" required /></label><label>Protéines pour 100 g<input name="protein" type="number" min="0" step="0.1" value="${food?.protein ?? 0}" required /></label><label>Glucides pour 100 g<input name="carbs" type="number" min="0" step="0.1" value="${food?.carbs ?? 0}" required /></label><label>Lipides pour 100 g<input name="fat" type="number" min="0" step="0.1" value="${food?.fat ?? 0}" required /></label>${unitWeightField}<label>Quantité disponible (${unit})<input name="quantity" type="number" min="0" step="${unit === 'unité' ? 1 : unit === 'kg' ? 0.1 : 1}" value="${shown.value}" required /></label><button class="save-targets">Enregistrer</button></form></dialog>`;
 }
 function customFoodDialog() {
   return `<dialog open class="target-dialog"><form id="custom-food-form" class="form-grid"><button class="close" type="button" data-close-custom-food aria-label="Fermer">×</button><h2>Créer un nouvel aliment</h2><label>Nom<input name="name" required placeholder="Ex. poudre d’amande" /></label><label>Catégorie<input name="category" value="Autres" required /></label><label>Énergie pour 100 g<input name="kcal" type="number" min="0" step="0.1" required /></label><label>Protéines pour 100 g<input name="protein" type="number" min="0" step="0.1" required /></label><label>Glucides pour 100 g<input name="carbs" type="number" min="0" step="0.1" required /></label><label>Lipides pour 100 g<input name="fat" type="number" min="0" step="0.1" required /></label><label>Quantité initiale (g)<input name="quantity" type="number" min="0" step="1" required /></label><label>Alerte sous (g)<input name="minimum" type="number" min="0" step="1" required /></label><button>Créer et ajouter au stock</button></form></dialog>`;
@@ -440,6 +464,27 @@ function shoppingQuantityDisplay(item) {
 function shoppingExportText(items) {
   return items.map((item) => { const display = shoppingQuantityDisplay(item); return `- ${item.name} : ${display.value} ${display.unit}`; }).join('\n');
 }
+function shoppingValidationLines(selectedItems) {
+  const lines = [];
+  const selectedNames = new Set(state.shoppingSelection || []);
+  state.stock.filter((item) => Number(item.quantity) <= Number(item.minimum)).forEach((stock) => {
+    const productName = priceProductForFoodId(stock.foodId);
+    if (productName && selectedNames.has(productName)) return;
+    const quantity = Math.max(0, Number(stock.minimum) - Number(stock.quantity));
+    if (quantity > 0) lines.push({ foodId: stock.foodId, quantity });
+  });
+  selectedItems.forEach((item) => {
+    if (!item.food) return;
+    const quantity = item.unit === 'kg' ? Number(item.quantity) * 1000 : Number(item.quantity);
+    if (quantity > 0) lines.push({ foodId: item.food.id, quantity });
+  });
+  return lines;
+}
+function addPurchaseToStock(foodId, quantity) {
+  const existing = state.stock.find((item) => item.foodId === foodId);
+  if (existing) existing.quantity = Number(existing.quantity) + Number(quantity);
+  else state.stock.push({ id: crypto.randomUUID(), foodId, quantity: Number(quantity), minimum: 0 });
+}
 function stockExportText() {
   return state.stock.map((item) => { const unit = preferredUnit(item.foodId, state.foods.find((food) => food.id === item.foodId)?.stockUnit || 'g'); const shown = quantityForDisplay(item.foodId, item.quantity, unit); return `- ${foodName(state, item.foodId)} : ${number(shown.value)} ${unit}`; }).join('\n');
 }
@@ -485,7 +530,7 @@ function shopping() {
   const categories = ['Fruits et légumes', 'Féculents et céréales', 'Produits laitiers', 'Viandes et charcuterie', 'Sauces et condiments', 'Boissons et snacking', 'Non alimentaire'];
   return `<section class="hero"><p>LISTE DE COURSES</p><h1>À acheter quand tu veux</h1><span>Propositions fondées sur les seuils de stock.</span></section>
   <section class="panel"><h2>Ajouter un article</h2><form id="shopping-form" class="inline-form"><input name="name" required placeholder="Ex. œufs" /><button>Ajouter</button></form></section>
-  <section class="panel"><h2>Mon panier</h2>${items.length ? `<div class="shopping-list">${items.map((item) => `<label><input type="checkbox" data-check-shopping="${item.id}" ${item.linkedPriceProduct ? `data-linked-price="${item.linkedPriceProduct}" ${selected.includes(item.linkedPriceProduct) ? 'checked' : ''}` : (item.done ? 'checked' : '')}/><span>${item.name}${item.suggested ? ` · au moins ${item.suggested} g` : ''}</span>${item.id.startsWith('stock-') ? '<em>stock faible</em>' : '<button class="icon" data-remove-shopping="' + item.id + '">×</button>'}</label>`).join('')}</div>` : ''}<h3 class="subheading">Produits suivis chez Lidl</h3>${categories.map((category) => { const names = products.filter((name) => priceCategory(name) === category); return names.length ? `<details class="product-category" data-product-category="${category}" ${openShoppingCategories.has(category) ? 'open' : ''}><summary>${category} <small>${names.length}</small></summary>${names.map((name) => priceProductCard(name, history, selected)).join('')}</details>` : ''; }).join('') || '<p class="empty">Aucun produit suivi.</p>'}${selectedItems.length ? `<section class="shopping-summary"><div class="section-title"><h3>Liste de courses</h3><div class="shopping-export-actions"><button class="small" type="button" data-copy-shopping>Copier</button><button class="small" type="button" data-export-shopping>Extraire</button></div></div>${selectedItems.map((item) => { const display = shoppingQuantityDisplay(item); return `<article><div><b>${item.name}</b><small>${item.food ? 'Aliment relié au catalogue' : 'Prix disponible, composition à renseigner'}</small></div><label>Quantité <span class="quantity-controls"><button type="button" class="quantity-step" data-shopping-step="-1" data-shopping-name="${item.name}" aria-label="Diminuer ${item.name}">▼</button><input type="number" min="1" step="${display.unit === 'kg' ? '0.1' : '1'}" value="${display.value}" data-shopping-quantity="${item.name}" /><button type="button" class="quantity-step" data-shopping-step="1" data-shopping-name="${item.name}" aria-label="Augmenter ${item.name}">▲</button>${item.unit === 'g' ? `<select data-shopping-unit="${item.name}"><option value="g" ${display.unit === 'g' ? 'selected' : ''}>g</option><option value="kg" ${display.unit === 'kg' ? 'selected' : ''}>kg</option></select>` : `<span>${item.unit}</span>`}</span></label><strong>${((item.latest?.price || 0) * item.quantity / item.baseQuantity).toFixed(2)} €</strong></article>`; }).join('')}<div class="cart-weight"><b>Poids estimé</b><strong>${estimatedWeight >= 1000 ? number(estimatedWeight / 1000) + ' kg' : number(estimatedWeight) + ' g'}</strong></div><div class="cart-total"><b>Total estimé</b><strong>${total.toFixed(2)} €</strong></div><div class="cart-macros"><div class="donut-grid">${cartMacroDonuts(nutritionTotal)}</div></div></section>` : ''}</section>`;
+  <section class="panel"><h2>Mon panier</h2>${items.length ? `<div class="shopping-list">${items.map((item) => `<label><input type="checkbox" data-check-shopping="${item.id}" ${item.linkedPriceProduct ? `data-linked-price="${item.linkedPriceProduct}" ${selected.includes(item.linkedPriceProduct) ? 'checked' : ''}` : (item.done ? 'checked' : '')}/><span>${item.name}${item.suggested ? ` · au moins ${item.suggested} g` : ''}</span>${item.id.startsWith('stock-') ? '<em>stock faible</em>' : '<button class="icon" data-remove-shopping="' + item.id + '">×</button>'}</label>`).join('')}</div><button type="button" data-validate-shopping>Valider les courses et remplir le stock</button>` : ''}<h3 class="subheading">Produits suivis chez Lidl</h3>${categories.map((category) => { const names = products.filter((name) => priceCategory(name) === category); return names.length ? `<details class="product-category" data-product-category="${category}" ${openShoppingCategories.has(category) ? 'open' : ''}><summary>${category} <small>${names.length}</small></summary>${names.map((name) => priceProductCard(name, history, selected)).join('')}</details>` : ''; }).join('') || '<p class="empty">Aucun produit suivi.</p>'}${selectedItems.length ? `<section class="shopping-summary"><div class="section-title"><h3>Liste de courses</h3><div class="shopping-export-actions"><button class="small" type="button" data-copy-shopping>Copier</button><button class="small" type="button" data-export-shopping>Extraire</button></div></div>${selectedItems.map((item) => { const display = shoppingQuantityDisplay(item); return `<article><div><b>${item.name}</b><small>${item.food ? 'Aliment relié au catalogue' : 'Prix disponible, composition à renseigner'}</small></div><label>Quantité <span class="quantity-controls"><button type="button" class="quantity-step" data-shopping-step="-1" data-shopping-name="${item.name}" aria-label="Diminuer ${item.name}">▼</button><input type="number" min="0" step="${display.unit === 'kg' ? '0.1' : '1'}" value="${display.value}" data-shopping-quantity="${item.name}" /><button type="button" class="quantity-step" data-shopping-step="1" data-shopping-name="${item.name}" aria-label="Augmenter ${item.name}">▲</button>${item.unit === 'g' ? `<select data-shopping-unit="${item.name}"><option value="g" ${display.unit === 'g' ? 'selected' : ''}>g</option><option value="kg" ${display.unit === 'kg' ? 'selected' : ''}>kg</option></select>` : `<span>${item.unit}</span>`}</span></label><strong>${((item.latest?.price || 0) * item.quantity / item.baseQuantity).toFixed(2)} €</strong></article>`; }).join('')}<div class="cart-weight"><b>Poids estimé</b><strong>${estimatedWeight >= 1000 ? number(estimatedWeight / 1000) + ' kg' : number(estimatedWeight) + ' g'}</strong></div><div class="cart-total"><b>Total estimé</b><strong>${total.toFixed(2)} €</strong></div><div class="cart-macros"><div class="donut-grid">${cartMacroDonuts(nutritionTotal)}</div></div></section>` : ''}</section>`;
 }
 function rememberOpenShoppingCategories() {
   openShoppingCategories = new Set([...app.querySelectorAll('[data-product-category][open]')].map((details) => details.dataset.productCategory));
@@ -498,7 +543,11 @@ function logEditor(entry) {
   if (recipe) {
     return `<dialog open class="target-dialog"><form id="recipe-log-editor-form" data-log-id="${entry.id}"><button class="close" type="button" data-close-log-editor aria-label="Fermer">×</button><h2>Modifier le repas</h2><p>Cette entrée est une recette : elle reste donc liée à sa composition, et non à un aliment seul.</p><div class="target-fields"><label>Repas<select name="meal">${mealOptions(entry.meal)}</select></label><label>Recette<select name="recipeId">${recipeOptions(recipe.id)}</select></label><label>Quantité totale<input value="${entry.grams} g" disabled /></label></div><button class="save-targets">Enregistrer les modifications</button></form></dialog>`;
   }
-  return `<dialog open class="target-dialog"><form id="log-editor-form" data-log-id="${entry.id}"><button class="close" type="button" data-close-log-editor aria-label="Fermer">×</button><h2>Modifier le repas</h2><p>Modifie le repas, l’aliment ou la quantité consommée.</p><div class="target-fields"><label>Repas<select name="meal"><option ${entry.meal === 'Petit-déjeuner' ? 'selected' : ''}>Petit-déjeuner</option><option ${entry.meal === 'Déjeuner' ? 'selected' : ''}>Déjeuner</option><option ${entry.meal === 'Dîner' ? 'selected' : ''}>Dîner</option><option ${entry.meal === 'Collation' ? 'selected' : ''}>Collation</option></select></label><label>Aliment<select name="foodId">${foodOptions(entry.foodId)}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="${entry.grams}" required /></label></div><button class="save-targets">Enregistrer les modifications</button></form></dialog>`;
+  const food = state.foods.find((item) => item.id === entry.foodId);
+  const counted = food?.stockUnit === 'unité' && Number(food.unitWeight) > 0;
+  const quantity = counted ? Number(entry.grams) / Number(food.unitWeight) : entry.grams;
+  const unit = counted ? 'unité' : 'g';
+  return `<dialog open class="target-dialog"><form id="log-editor-form" data-log-id="${entry.id}"><button class="close" type="button" data-close-log-editor aria-label="Fermer">×</button><h2>Modifier le repas</h2><p>Modifie le repas, l’aliment ou la quantité consommée.</p><div class="target-fields"><label>Repas<select name="meal"><option ${entry.meal === 'Petit-déjeuner' ? 'selected' : ''}>Petit-déjeuner</option><option ${entry.meal === 'Déjeuner' ? 'selected' : ''}>Déjeuner</option><option ${entry.meal === 'Dîner' ? 'selected' : ''}>Dîner</option><option ${entry.meal === 'Collation' ? 'selected' : ''}>Collation</option></select></label><label>Aliment<select name="foodId">${foodOptions(entry.foodId)}</select></label><label>Quantité (${unit})<input name="grams" type="number" min="1" step="${counted ? 1 : 1}" value="${quantity}" required /></label></div><button class="save-targets">Enregistrer les modifications</button></form></dialog>`;
 }
 function ingredientLine(item = null, removable = false) {
   return `<div class="ingredient-line"><label>Ingrédient<select name="foodId">${foodOptions(item?.foodId)}</select></label><label>Quantité (g)<input name="grams" type="number" min="1" value="${item?.grams || 100}" required /></label>${removable ? '<button type="button" class="icon" data-remove-ingredient aria-label="Supprimer cet ingrédient">×</button>' : ''}</div>`;
@@ -530,13 +579,13 @@ function bind() {
   app.querySelector('[data-water-bottle-size]')?.addEventListener('change', (event) => { state.waterBottleSize = Math.max(50, Number(event.target.value) || 600); save(); render(); });
   app.querySelector('[data-add-water-bottle]')?.addEventListener('click', () => { state.water[today()] = Math.max(0, Number(state.water[today()] || 0) + state.waterBottleSize); save(); render(); });
   app.querySelectorAll('[data-water-change]').forEach((button) => button.addEventListener('click', () => { state.water[today()] = Math.max(0, Number(state.water[today()] || 0) + Number(button.dataset.waterChange)); save(); render(); }));
-  app.querySelector('#log-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodId = data.get('foodId'); const grams = Number(data.get('grams')); addLog(foodId, grams, data.get('meal')); if (data.get('fromStock')) removeFromStock(foodId, grams); save(); notify(data.get('fromStock') ? 'Aliment ajouté et stock diminué.' : 'Aliment ajouté au journal.'); });
+  app.querySelector('#log-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodId = data.get('foodId'); const quantity = Number(data.get('grams')); const food = state.foods.find((item) => item.id === foodId); const grams = gramsForQuantity(food, quantity); const fromStock = data.get('fromStock') === 'on'; state.defaultFoodId = foodId; addLog(foodId, quantity, data.get('meal'), null, fromStock); if (fromStock) removeFromStock(foodId, grams); save(); notify(fromStock ? 'Aliment ajouté et stock diminué.' : 'Aliment ajouté au journal.'); });
   app.querySelector('#log-form select[name="meal"]')?.addEventListener('change', (event) => { state.defaultMeal = event.target.value; save(); });
   app.querySelector('#log-form input[name="foodSearch"]')?.addEventListener('input', updateFoodSearch);
-  app.querySelector('#log-form select[name="foodId"]')?.addEventListener('change', updateFoodPreview);
+  app.querySelector('#log-form select[name="foodId"]')?.addEventListener('change', (event) => { state.defaultFoodId = event.currentTarget.value; save(); updateFoodPreview(); });
   app.querySelector('#log-form input[name="grams"]')?.addEventListener('input', updateFoodPreview);
   const openLogEditor = (id) => { const entry = state.logs.find((item) => item.id === id); if (entry) { app.insertAdjacentHTML('beforeend', logEditor(entry)); bindLogEditor(); } };
-  app.querySelectorAll('[data-remove-log]').forEach((button) => button.addEventListener('click', () => { state.logs = state.logs.filter((item) => item.id !== button.dataset.removeLog); save(); render(); }));
+  app.querySelectorAll('[data-remove-log]').forEach((button) => button.addEventListener('click', () => { const entry = state.logs.find((item) => item.id === button.dataset.removeLog); if (entry?.fromStock) addToStock(entry.foodId, entry.grams); state.logs = state.logs.filter((item) => item.id !== button.dataset.removeLog); save(); render(); }));
   app.querySelectorAll('[data-edit-log]').forEach((button) => button.addEventListener('click', () => openLogEditor(button.dataset.editLog)));
   app.querySelectorAll('[data-log-row]').forEach((article) => article.addEventListener('dblclick', () => openLogEditor(article.dataset.logRow)));
   app.querySelector('[data-action="open-targets"]')?.addEventListener('click', () => { app.insertAdjacentHTML('beforeend', targets()); bindTargets(); });
@@ -549,22 +598,36 @@ function bind() {
   app.querySelectorAll('[data-remove-ingredient]').forEach((button) => button.addEventListener('click', () => { const lines = app.querySelectorAll('#recipe-edit-lines .ingredient-line'); if (lines.length > 1) button.closest('.ingredient-line').remove(); }));
   app.querySelector('#recipe-edit-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodIds = data.getAll('foodId'); const grams = data.getAll('grams'); const recipe = state.recipes.find((item) => item.id === event.target.dataset.recipeId); if (!recipe) return; recipe.name = data.get('name').trim(); recipe.ingredients = foodIds.map((foodId, index) => ({ foodId, grams: Number(grams[index]) })).filter((item) => item.foodId && item.grams > 0); save(); recipeEditorId = null; notify('Recette modifiée.'); });
   app.querySelector('[data-delete-recipe]')?.addEventListener('click', (event) => { if (!confirm('Supprimer définitivement cette recette ?')) return; state.recipes = state.recipes.filter((recipe) => recipe.id !== event.currentTarget.dataset.deleteRecipe); save(); recipeEditorId = null; notify('Recette supprimée.'); });
-  app.querySelectorAll('[data-cook]').forEach((button) => button.addEventListener('click', () => { const recipe = state.recipes.find((item) => item.id === button.dataset.cook); if (!recipe) return; app.insertAdjacentHTML('beforeend', recipeCookDialog(recipe)); const dialog = app.querySelector('#recipe-cook-form')?.closest('dialog'); dialog?.querySelectorAll('[data-close-cook-dialog]').forEach((close) => close.addEventListener('click', () => dialog.remove())); dialog?.querySelector('#recipe-cook-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const entries = recipe.ingredients.map((ingredient) => { const food = state.foods.find((item) => item.id === ingredient.foodId); const grams = Number(ingredient.grams); return food && Number.isFinite(grams) && grams > 0 ? { id: crypto.randomUUID(), date: today(), meal: data.get('meal'), name: foodAmountLabel(food.id, grams, food.name), foodId: food.id, grams, ...nutrientsFor(food, grams) } : null; }).filter(Boolean); state.logs.unshift(...entries); if (data.get('fromStock')) recipe.ingredients.forEach((ingredient) => removeFromStock(ingredient.foodId, ingredient.grams)); save(); dialog.remove(); view = 'journal'; notify(`${recipe.name} ajoutée par ingrédients au journal.`); }); }));
+  app.querySelectorAll('[data-cook]').forEach((button) => button.addEventListener('click', () => { const recipe = state.recipes.find((item) => item.id === button.dataset.cook); if (!recipe) return; app.insertAdjacentHTML('beforeend', recipeCookDialog(recipe)); const dialog = app.querySelector('#recipe-cook-form')?.closest('dialog'); dialog?.querySelectorAll('[data-close-cook-dialog]').forEach((close) => close.addEventListener('click', () => dialog.remove())); dialog?.querySelector('#recipe-cook-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const fromStock = data.get('fromStock') === 'on'; const entries = recipe.ingredients.map((ingredient) => { const food = state.foods.find((item) => item.id === ingredient.foodId); const grams = Number(ingredient.grams); return food && Number.isFinite(grams) && grams > 0 ? { id: crypto.randomUUID(), date: today(), meal: data.get('meal'), name: foodAmountLabel(food.id, grams, food.name), foodId: food.id, grams, fromStock, ...nutrientsFor(food, grams) } : null; }).filter(Boolean); state.logs.unshift(...entries); if (fromStock) recipe.ingredients.forEach((ingredient) => removeFromStock(ingredient.foodId, ingredient.grams)); save(); dialog.remove(); view = 'journal'; notify(`${recipe.name} ajoutée par ingrédients au journal.`); }); }));
   app.querySelector('#stock-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const foodId = data.get('foodId'); const unit = preferredUnit(foodId, 'g'); const quantity = quantityFromDisplay(foodId, Number(data.get('quantity')), unit); const minimum = quantityFromDisplay(foodId, Number(data.get('minimum')), unit); const existing = state.stock.find((item) => item.foodId === foodId); if (existing) { existing.quantity += quantity; existing.minimum = minimum; } else { state.stock.push({ id: crypto.randomUUID(), foodId, quantity, minimum }); } save(); notify('Stock mis à jour.'); });
   app.querySelector('#custom-food-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const name = data.get('name').trim(); if (state.foods.some((food) => food.name.toLocaleLowerCase('fr') === name.toLocaleLowerCase('fr'))) { notify('Cet aliment existe déjà.'); return; } const foodId = `custom-${crypto.randomUUID()}`; state.foods.push({ id: foodId, name, category: data.get('category').trim() || 'Autres', unit: 'g', kcal: Number(data.get('kcal')), protein: Number(data.get('protein')), carbs: Number(data.get('carbs')), fat: Number(data.get('fat')) }); state.stock.push({ id: crypto.randomUUID(), foodId, quantity: Number(data.get('quantity')), minimum: Number(data.get('minimum')) }); save(); notify(`${name} créé et ajouté au stock.`); });
   app.querySelector('#stock-form select[name="foodId"]')?.addEventListener('change', updateStockFormDefaults);
   app.querySelector('[data-open-custom-food]')?.addEventListener('click', () => { app.insertAdjacentHTML('beforeend', customFoodDialog()); const dialog = app.querySelector('#custom-food-form')?.closest('dialog'); dialog?.querySelector('[data-close-custom-food]')?.addEventListener('click', () => dialog.remove()); dialog?.querySelector('#custom-food-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const name = data.get('name').trim(); if (state.foods.some((food) => food.name.toLocaleLowerCase('fr') === name.toLocaleLowerCase('fr'))) { notify('Cet aliment existe déjà.'); return; } const foodId = `custom-${crypto.randomUUID()}`; state.foods.push({ id: foodId, name, category: data.get('category').trim() || 'Autres', unit: 'g', kcal: Number(data.get('kcal')), protein: Number(data.get('protein')), carbs: Number(data.get('carbs')), fat: Number(data.get('fat')) }); state.stock.push({ id: crypto.randomUUID(), foodId, quantity: Number(data.get('quantity')), minimum: Number(data.get('minimum')) }); save(); dialog.remove(); render(); notify(`${name} créé et ajouté au stock.`); }); });
   app.querySelectorAll('[data-stock-unit]').forEach((select) => select.addEventListener('change', (event) => { event.stopPropagation(); state.unitPreferences[select.dataset.stockUnit] = select.value; save(); render(); }));
   app.querySelectorAll('[data-adjust-stock]').forEach((button) => button.addEventListener('click', () => { const item = state.stock.find((stock) => stock.id === button.dataset.adjustStock); item.quantity = Math.max(0, Number(item.quantity) + Number(button.dataset.change)); save(); render(); }));
-  app.querySelectorAll('[data-edit-stock]').forEach((article) => { let timer; const open = () => { const item = state.stock.find((stock) => stock.id === article.dataset.editStock); if (!item) return; app.insertAdjacentHTML('beforeend', stockEditor(item)); const dialog = app.querySelector('#stock-editor-form')?.closest('dialog'); dialog?.querySelector('[data-close-stock-editor]')?.addEventListener('click', () => dialog.remove()); dialog?.querySelector('#stock-editor-form')?.addEventListener('submit', (event) => { event.preventDefault(); const form = event.target; const data = new FormData(form); const unit = form.dataset.stockUnit; const food = state.foods.find((entry) => entry.id === item.foodId); if (!food) return; Object.assign(food, { name: data.get('name').trim(), kcal: Number(data.get('kcal')), protein: Number(data.get('protein')), carbs: Number(data.get('carbs')), fat: Number(data.get('fat')) }); item.quantity = Math.max(0, quantityFromDisplay(item.foodId, Number(data.get('quantity')), unit)); if (unit !== 'unité') state.unitPreferences[item.foodId] = unit; save(); dialog.remove(); render(); }); }; article.addEventListener('dblclick', open); article.addEventListener('pointerdown', () => { timer = setTimeout(open, 600); }); article.addEventListener('pointerup', () => clearTimeout(timer)); article.addEventListener('pointerleave', () => clearTimeout(timer)); });
+  app.querySelectorAll('[data-edit-stock]').forEach((article) => { let timer; const open = () => { const item = state.stock.find((stock) => stock.id === article.dataset.editStock); if (!item) return; app.insertAdjacentHTML('beforeend', stockEditor(item)); const dialog = app.querySelector('#stock-editor-form')?.closest('dialog'); dialog?.querySelector('[data-close-stock-editor]')?.addEventListener('click', () => dialog.remove()); dialog?.querySelector('#stock-editor-form')?.addEventListener('submit', (event) => { event.preventDefault(); const form = event.target; const data = new FormData(form); const unit = form.dataset.stockUnit; const food = state.foods.find((entry) => entry.id === item.foodId); if (!food) return; Object.assign(food, { name: data.get('name').trim(), kcal: Number(data.get('kcal')), protein: Number(data.get('protein')), carbs: Number(data.get('carbs')), fat: Number(data.get('fat')) }); if (food.stockUnit === 'unité') food.unitWeight = Number(data.get('unitWeight')) || 0; item.quantity = Math.max(0, quantityFromDisplay(item.foodId, Number(data.get('quantity')), unit)); if (unit !== 'unité') state.unitPreferences[item.foodId] = unit; save(); dialog.remove(); render(); }); }; article.addEventListener('dblclick', open); article.addEventListener('pointerdown', () => { timer = setTimeout(open, 600); }); article.addEventListener('pointerup', () => clearTimeout(timer)); article.addEventListener('pointerleave', () => clearTimeout(timer)); });
   app.querySelector('#shopping-form')?.addEventListener('submit', (event) => { event.preventDefault(); const name = new FormData(event.target).get('name').trim(); state.shopping.push({ id: crypto.randomUUID(), name, done: false }); save(); notify('Article ajouté.'); });
   app.querySelectorAll('[data-check-shopping]').forEach((input) => input.addEventListener('change', () => { const linkedName = input.dataset.linkedPrice; if (linkedName) { rememberOpenShoppingCategories(); state.shoppingSelection = state.shoppingSelection || []; state.shoppingQuantities = state.shoppingQuantities || {}; if (input.checked && !state.shoppingQuantities[linkedName]) state.shoppingQuantities[linkedName] = purchaseSpec(linkedName).quantity; state.shoppingSelection = input.checked ? [...new Set([...state.shoppingSelection, linkedName])] : state.shoppingSelection.filter((name) => name !== linkedName); save(); render(); return; } const item = state.shopping.find((entry) => entry.id === input.dataset.checkShopping); if (item) { item.done = input.checked; save(); } }));
   app.querySelectorAll('[data-remove-shopping]').forEach((button) => button.addEventListener('click', () => { state.shopping = state.shopping.filter((item) => item.id !== button.dataset.removeShopping); save(); render(); }));
+  app.querySelector('[data-validate-shopping]')?.addEventListener('click', () => {
+    const selectedItems = selectedShoppingItems(state.priceRecords || PRICE_RECORDS);
+    const lines = shoppingValidationLines(selectedItems);
+    const unresolved = state.shopping.filter((item) => !item.foodId).length + selectedItems.filter((item) => !item.food).length;
+    const warning = unresolved ? ` ${unresolved} article${unresolved > 1 ? 's' : ''} ne pourra${unresolved > 1 ? 'ont' : ''} pas être ajouté${unresolved > 1 ? 's' : ''} au stock.` : '';
+    if (!confirm(`Valider les courses, ajouter les aliments reliés au stock et supprimer la liste ?${warning}`)) return;
+    lines.forEach((line) => addPurchaseToStock(line.foodId, line.quantity));
+    state.shopping = [];
+    state.shoppingSelection = [];
+    state.shoppingQuantities = {};
+    save();
+    render();
+    notify('Courses validées : stock mis à jour et liste supprimée.');
+  });
   app.querySelectorAll('[data-price-product]').forEach((button) => button.addEventListener('click', () => { const details = app.querySelector(`[data-price-details="${CSS.escape(button.dataset.priceProduct)}"]`); if (details) details.hidden = !details.hidden; }));
   app.querySelectorAll('[data-remove-price-product]').forEach((button) => button.addEventListener('click', () => { state.priceRecords = state.priceRecords.filter((item) => item.name !== button.dataset.removePriceProduct); save(); render(); }));
   app.querySelectorAll('[data-select-price]').forEach((input) => input.addEventListener('change', () => { rememberOpenShoppingCategories(); state.shoppingSelection = state.shoppingSelection || []; state.shoppingQuantities = state.shoppingQuantities || {}; if (input.checked && !state.shoppingQuantities[input.dataset.selectPrice]) state.shoppingQuantities[input.dataset.selectPrice] = purchaseSpec(input.dataset.selectPrice).quantity; state.shoppingSelection = input.checked ? [...new Set([...state.shoppingSelection, input.dataset.selectPrice])] : state.shoppingSelection.filter((name) => name !== input.dataset.selectPrice); save(); render(); }));
-  app.querySelectorAll('[data-shopping-quantity]').forEach((input) => { input.type = 'text'; input.inputMode = 'decimal'; input.addEventListener('change', () => { const unit = app.querySelector(`[data-shopping-unit="${CSS.escape(input.dataset.shoppingQuantity)}"]`)?.value || 'g'; const value = Math.max(1, Number(input.value.replace(',', '.')) || 1); state.shoppingQuantities = state.shoppingQuantities || {}; state.shoppingQuantities[input.dataset.shoppingQuantity] = unit === 'kg' ? value * 1000 : value; save(); render(); }); });
-  app.querySelectorAll('[data-shopping-step]').forEach((button) => button.addEventListener('click', () => { const name = button.dataset.shoppingName; const item = selectedShoppingItems(state.priceRecords || PRICE_RECORDS).find((entry) => entry.name === name); if (!item) return; const display = shoppingQuantityDisplay(item); const step = 1; const value = Math.max(1, number(display.value + Number(button.dataset.shoppingStep) * step)); state.shoppingQuantities = state.shoppingQuantities || {}; state.shoppingQuantities[name] = display.unit === 'kg' ? value * 1000 : value; save(); render(); }));
+  app.querySelectorAll('[data-shopping-quantity]').forEach((input) => { input.type = 'text'; input.inputMode = 'decimal'; input.addEventListener('change', () => { const name = input.dataset.shoppingQuantity; const unit = app.querySelector(`[data-shopping-unit="${CSS.escape(name)}"]`)?.value || 'g'; const value = Math.max(0, Number(input.value.replace(',', '.')) || 0); state.shoppingQuantities = state.shoppingQuantities || {}; if (value === 0) { state.shoppingSelection = (state.shoppingSelection || []).filter((item) => item !== name); delete state.shoppingQuantities[name]; } else state.shoppingQuantities[name] = unit === 'kg' ? value * 1000 : value; save(); render(); }); });
+  app.querySelectorAll('[data-shopping-step]').forEach((button) => button.addEventListener('click', () => { const name = button.dataset.shoppingName; const item = selectedShoppingItems(state.priceRecords || PRICE_RECORDS).find((entry) => entry.name === name); if (!item) return; const display = shoppingQuantityDisplay(item); const step = 1; const value = Math.max(0, number(display.value + Number(button.dataset.shoppingStep) * step)); state.shoppingQuantities = state.shoppingQuantities || {}; if (value === 0) { state.shoppingSelection = (state.shoppingSelection || []).filter((entry) => entry !== name); delete state.shoppingQuantities[name]; } else state.shoppingQuantities[name] = display.unit === 'kg' ? value * 1000 : value; save(); render(); }));
   app.querySelectorAll('.shopping-summary .quantity-controls > span').forEach((span) => { const name = span.closest('label')?.querySelector('[data-shopping-quantity]')?.dataset.shoppingQuantity; if (!name) return; const select = document.createElement('select'); select.dataset.shoppingUnit = name; ['g', 'kg', 'unité'].forEach((unit) => { const option = new Option(unit, unit); if (unit === span.textContent.trim()) option.selected = true; select.add(option); }); span.replaceWith(select); });
   app.querySelectorAll('[data-shopping-unit]').forEach((select) => { if (![...select.options].some((option) => option.value === 'unité')) select.add(new Option('unité', 'unité')); select.addEventListener('change', () => { const name = select.dataset.shoppingUnit; const item = selectedShoppingItems(state.priceRecords || PRICE_RECORDS).find((entry) => entry.name === name); state.shoppingUnitPreferences[name] = select.value; if (item?.food) state.unitPreferences[item.food.id] = select.value; save(); render(); }); });
   app.querySelector('[data-copy-shopping]')?.addEventListener('click', async (event) => { event.preventDefault(); event.stopPropagation(); const currentItems = selectedShoppingItems(state.priceRecords || PRICE_RECORDS); if (await copyText(shoppingExportText(currentItems))) notify('Liste de courses copiée.'); else notify('Copie impossible dans ce navigateur.'); });
@@ -604,9 +667,12 @@ function bindLogEditor() {
     const data = new FormData(form);
     const entry = state.logs.find((item) => item.id === form.dataset.logId);
     const food = state.foods.find((item) => item.id === data.get('foodId'));
-    const grams = Number(data.get('grams'));
-    if (!entry || !food || !Number.isFinite(grams) || grams < 1) return;
+    const quantity = Number(data.get('grams'));
+    const grams = gramsForQuantity(food, quantity);
+    if (!entry || !food || !Number.isFinite(quantity) || quantity < 1) return;
+    if (entry.fromStock) addToStock(entry.foodId, entry.grams);
     Object.assign(entry, { meal: data.get('meal'), foodId: food.id, name: food.name, grams, ...nutrientsFor(food, grams) });
+    if (entry.fromStock) removeFromStock(food.id, grams);
     save();
     dialog.remove();
     notify('Repas modifié.');
@@ -616,6 +682,16 @@ function updateFoodPreview() {
   const form = app.querySelector('#log-form');
   const preview = app.querySelector('#food-preview');
   if (!form || !preview) return;
+  const food = state.foods.find((item) => item.id === form.elements.foodId.value);
+  const counted = food?.stockUnit === 'unité' && Number(food.unitWeight) > 0;
+  const label = form.querySelector('[data-quantity-label]');
+  const previousUnit = label?.dataset.unit || 'g';
+  const nextUnit = counted ? 'unité' : 'g';
+  if (label) {
+    if (previousUnit !== nextUnit) form.elements.grams.value = counted ? 1 : 100;
+    label.dataset.unit = nextUnit;
+    label.childNodes[0].textContent = 'Quantité (g / unité)';
+  }
   preview.outerHTML = foodPreview(form.elements.foodId.value, form.elements.grams.value);
 }
 
@@ -644,10 +720,12 @@ function updateFoodSearch(event) {
     const firstVisible = [...select.options].find((option) => !option.hidden);
     if (firstVisible) select.value = firstVisible.value;
   }
+  state.defaultFoodId = select.value;
+  save();
   updateFoodPreview();
 }
 function bindTargets() { const dialog = app.querySelector('dialog'); dialog.querySelector('[data-close-targets]').addEventListener('click', () => dialog.remove()); dialog.querySelector('#targets-form').addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); state.targets = Object.fromEntries(['kcal','protein','carbs','fat'].map((key) => [key, data.get(key)])); save(); dialog.remove(); notify('Objectifs enregistrés.'); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260920-111');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260922-04');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
 render();
