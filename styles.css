@@ -36,6 +36,21 @@
 @media (max-width: 560px) { .shopping-summary article { gap: 6px; grid-template-columns: minmax(0,1fr) auto; } .shopping-summary article > div { grid-column: 1; grid-row: 1; } .shopping-summary article > label { grid-column: 1 / -1; grid-row: 2; justify-self: start; } .shopping-summary article > strong { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; margin: 0; } .shopping-summary article > div b { font-size: .9rem; } .shopping-summary article > div small { display: none; } .quantity-controls { gap: 3px; padding: 2px; } .quantity-controls input,.quantity-value { width: 46px; min-width: 46px; min-height: 28px; font-size: .86rem; } .quantity-controls select { width: 50px; min-width: 50px; padding: 5px 2px; font-size: .75rem; } .quantity-step { flex-basis: 24px; width: 24px; height: 28px; font-size: .58rem; } }
 @media (max-width: 560px) { .water-controls .small { padding-inline: 8px; font-size: .8rem; } }
 .journal-export-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 10px 0; }
+.supplements-tracker .section-title > div > span { color: #597169; font-size: .78rem; }
+.supplements-list { display: grid; gap: 9px; }
+.supplement-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 12px 0; border-top: 1px solid #edf3ee; }
+.supplement-check { display: flex; align-items: center; gap: 10px; min-width: 0; cursor: pointer; }
+.supplement-check input { width: 21px; height: 21px; min-width: 21px; accent-color: #18745b; }
+.supplement-check b,.supplement-check small { display: block; }
+.supplement-check small,.supplement-hint { color: #597169; font-size: .76rem; }
+.supplement-card.taken b { text-decoration: line-through; color: #597169; }
+.supplement-controls { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+.supplement-controls > label:not(.switch) { display: grid; gap: 3px; color: #597169; font-size: .67rem; }
+.supplement-controls input[type="time"] { width: 94px; padding: 6px; }
+.supplement-controls .switch { display: flex; align-items: center; gap: 4px; color: #597169; font-size: .72rem; }
+.supplement-controls .switch input { width: 16px; height: 16px; accent-color: #18745b; }
+.supplement-hint { margin: 12px 0 0; line-height: 1.4; }
+@media (max-width: 560px) { .supplement-card { grid-template-columns: 1fr; } .supplement-controls { justify-content: flex-start; } }
 .settings-gear { width: 36px; height: 36px; padding: 0; border-radius: 50%; background: #eaf4ed; color: #18745b; font-size: 1.25rem; line-height: 1; }
 .settings-gear.active { background: #18745b; color: #fff; }
 .settings-actions { display: flex; flex-wrap: wrap; gap: 10px; }

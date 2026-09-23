@@ -1,10 +1,11 @@
-import { addNutrients, emptyState, foodName, gramsForQuantity, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS } from './domain.js?v=20260922-01';
+import { addNutrients, emptyState, foodName, gramsForQuantity, lowStock, nutrientsFor, recipeNutrients, SAMPLE_FOODS, supplementTakenToday, toggleSupplementTaken } from './domain.js?v=20260923-01';
 
 const STORAGE_KEY = 'repas-stock-v1';
 const TEST_MEAL_VERSION = 'eggs-cheese-mayo-20260919';
 const SAMPLE_RECIPES_VERSION = 'sample-recipes-20260920-v2';
 const STOCK_VERSION = 'stock-axel-20260919-v4';
 const PRICE_HISTORY_VERSION = 'lidl-prices-20260919-v3';
+const SUPPLEMENTS_VERSION = 'creatine-3g-20260923';
 const PRICE_RECORDS = [
   ['Flocons d’avoine', '2025-11-26', 0.85, 3], ['Flocons d’avoine', '2026-05-23', 0.79, 2],
   ['Lentilles vertes', '2025-11-26', 1.63, 3], ['Coquillettes 1 kg', '2025-11-26', 1.05, 2], ['Coquillettes 1 kg', '2025-12-01', 1.03, 3], ['Coquillettes 1 kg', '2026-01-30', 0.97, 3],
@@ -43,11 +44,14 @@ state.waterBottleSize = Number(state.waterBottleSize) || 600;
 state.shoppingUnitPreferences = state.shoppingUnitPreferences || {};
 state.defaultMeal = state.defaultMeal || 'Petit-déjeuner';
 state.defaultFoodId = state.defaultFoodId || state.foods[0]?.id;
+state.supplements = state.supplements || emptyState().supplements;
+state.supplements.forEach((supplement) => { supplement.takenOn = Array.isArray(supplement.takenOn) ? supplement.takenOn : []; });
 let view = 'journal';
 let toast = '';
 let journalComposerOpen = false;
 let openShoppingCategories = new Set();
 let recipeEditorId = null;
+let supplementNotificationTimer;
 const MEAL_DISPLAY_ORDER = { Dîner: 0, Repas: 1, Collation: 2, Déjeuner: 3, 'Petit-déjeuner': 4 };
 
 function loadState() {
@@ -81,6 +85,12 @@ function loadState() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     }
     if (next.priceHistoryVersion !== PRICE_HISTORY_VERSION) { next.priceHistoryVersion = PRICE_HISTORY_VERSION; next.priceRecords = PRICE_RECORDS.filter((item) => !NON_FOOD_ITEMS.includes(item.name)); localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); }
+    if (next.supplementsVersion !== SUPPLEMENTS_VERSION) {
+      const defaults = emptyState().supplements;
+      next.supplements = [...(next.supplements || []), ...defaults.filter((item) => !(next.supplements || []).some((supplement) => supplement.id === item.id))];
+      next.supplementsVersion = SUPPLEMENTS_VERSION;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    }
     const currentWhey = next.foods.find((food) => food.id === 'whey');
     const packageWhey = SAMPLE_FOODS.find((food) => food.id === 'whey');
     if (currentWhey?.name.includes('valeur générique')) Object.assign(currentWhey, packageWhey);
@@ -126,6 +136,28 @@ function quantityFromDisplay(foodId, value, unit) {
 function today() { return new Date().toISOString().slice(0, 10); }
 function number(value) { return Math.round(Number(value || 0) * 10) / 10; }
 function notify(message) { toast = message; render(); setTimeout(() => { toast = ''; render(); }, 2600); }
+function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]); }
+function supplementReminderText(supplement) { return `Rappel : ${supplement.name} — ${number(supplement.dose)} ${supplement.unit}.`; }
+function scheduleSupplementReminder() {
+  clearTimeout(supplementNotificationTimer);
+  const now = new Date();
+  const scheduled = state.supplements.filter((item) => item.reminderEnabled && item.reminderTime && !supplementTakenToday(item)).map((item) => {
+    const [hours, minutes] = item.reminderTime.split(':').map(Number);
+    const due = new Date(now);
+    due.setHours(hours, minutes, 0, 0);
+    if (due <= now) due.setDate(due.getDate() + 1);
+    return { item, due };
+  }).sort((a, b) => a.due - b.due)[0];
+  if (!scheduled) return;
+  supplementNotificationTimer = setTimeout(() => {
+    const next = scheduled.item;
+    if (!supplementTakenToday(next)) {
+      if (globalThis.Notification?.permission === 'granted') new Notification('Repas & stock', { body: supplementReminderText(next), icon: './assets/icon.svg' });
+      else notify(supplementReminderText(next));
+    }
+    scheduleSupplementReminder();
+  }, scheduled.due.getTime() - now.getTime());
+}
 function totalToday() { return addNutrients(state.logs.filter((entry) => entry.date === today())); }
 function journalExportText() {
   const totals = totalToday();
@@ -142,6 +174,20 @@ function waterTracker() {
   const goal = 2000;
   const percent = Math.min(100, Math.round((consumed / goal) * 100));
   return `<section class="panel water-tracker"><div class="section-title"><h2>Eau</h2><span>${consumed} ml / ${goal} ml</span></div><label class="water-slider-label"><span>Avancement</span><div class="water-slider-wrap"><input type="range" min="0" max="5000" step="50" value="${consumed}" data-water-slider aria-label="Quantité d’eau bue aujourd’hui" /><i class="water-recommendation" aria-label="Repère à 2,5 litres recommandés pour un homme adulte"><b>2,5 L</b></i></div></label><div class="water-bottle-controls"><label><span>Taille de ma gourde (ml)</span><input type="number" min="50" step="50" value="${state.waterBottleSize}" data-water-bottle-size /></label><button class="small" type="button" data-add-water-bottle>＋ Ajouter une gourde</button></div><small>${percent}% de l’objectif quotidien indicatif</small></section>`;
+}
+function supplementsTracker() {
+  const supplements = state.supplements || [];
+  const taken = supplements.filter((item) => supplementTakenToday(item)).length;
+  const notificationAvailable = 'Notification' in globalThis;
+  const notificationPermission = notificationAvailable ? Notification.permission : 'unsupported';
+  return `<section class="panel supplements-tracker"><div class="section-title"><div><h2>Mes compléments</h2><span>${taken}/${supplements.length} pris aujourd’hui</span></div><button type="button" class="small" data-add-supplement>＋ Ajouter</button></div>${supplements.length ? `<div class="supplements-list">${supplements.map((item) => {
+    const isTaken = supplementTakenToday(item);
+    return `<article class="supplement-card ${isTaken ? 'taken' : ''}"><label class="supplement-check"><input type="checkbox" data-toggle-supplement="${item.id}" ${isTaken ? 'checked' : ''} aria-label="${isTaken ? 'Marquer' : 'Marquer comme'} ${escapeHtml(item.name)} comme pris" /><span><b>${escapeHtml(item.name)}</b><small>${number(item.dose)} ${escapeHtml(item.unit)} · chaque jour</small></span></label><div class="supplement-controls"><label>Rappel <input type="time" value="${item.reminderTime || '09:00'}" data-supplement-time="${item.id}" aria-label="Heure du rappel pour ${escapeHtml(item.name)}" ${item.reminderEnabled ? '' : 'disabled'} /></label><label class="switch"><input type="checkbox" data-supplement-reminder="${item.id}" ${item.reminderEnabled ? 'checked' : ''} /> Activer</label><button type="button" class="small" data-edit-supplement="${item.id}">Modifier</button><button type="button" class="icon" data-remove-supplement="${item.id}" aria-label="Supprimer ${escapeHtml(item.name)}">×</button></div></article>`;
+  }).join('')}</div>` : '<p class="empty">Ajoute un complément pour le retrouver ici chaque jour.</p>'}<p class="hint supplement-hint">${notificationAvailable ? (notificationPermission === 'granted' ? 'Les rappels activés s’affichent tant que l’application est ouverte.' : 'Active un rappel puis autorise les notifications pour recevoir une alerte lorsque l’application est ouverte.') : 'Les notifications ne sont pas prises en charge par ce navigateur.'}</p>${notificationAvailable && notificationPermission !== 'granted' && notificationPermission !== 'denied' ? '<button type="button" class="small" data-request-notifications>Autoriser les notifications</button>' : ''}</section>`;
+}
+function supplementDialog(supplement = null) {
+  const item = supplement || { name: '', dose: '', unit: 'g', reminderTime: '09:00', reminderEnabled: false };
+  return `<dialog open class="target-dialog"><form id="supplement-form" data-supplement-id="${supplement?.id || ''}"><button class="close" type="button" data-close-supplement-dialog aria-label="Fermer">×</button><h2>${supplement ? 'Modifier le complément' : 'Ajouter un complément'}</h2><p>La dose est celle que tu renseignes : l’application ne donne pas de conseil médical.</p><div class="target-fields"><label>Nom<input name="name" required maxlength="80" value="${escapeHtml(item.name)}" placeholder="Ex. créatine" /></label><label>Dose<input name="dose" type="number" min="0.1" step="0.1" required value="${item.dose}" /></label><label>Unité<select name="unit"><option value="g" ${item.unit === 'g' ? 'selected' : ''}>g</option><option value="mg" ${item.unit === 'mg' ? 'selected' : ''}>mg</option><option value="ml" ${item.unit === 'ml' ? 'selected' : ''}>ml</option><option value="unité" ${item.unit === 'unité' ? 'selected' : ''}>unité</option></select></label><label>Heure du rappel<input name="reminderTime" type="time" value="${item.reminderTime || '09:00'}" /></label><label class="checkbox-field"><input name="reminderEnabled" type="checkbox" ${item.reminderEnabled ? 'checked' : ''} /> Activer le rappel</label></div><button class="save-targets">Enregistrer</button></form></dialog>`;
 }
 function targetCard(label, key, value, suffix) {
   const target = Number(state.targets[key]);
@@ -350,7 +396,7 @@ function journal() {
   const initialQuantity = initialFood?.stockUnit === 'unité' && Number(initialFood.unitWeight) > 0 ? 1 : 100;
   return `<section class="hero"><p>AUJOURD’HUI</p><h1>Ton journal alimentaire</h1><button class="date-button" data-open-period>${new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())} ▾</button></section>
   <div class="journal-export-actions"><button class="small" type="button" data-copy-journal>Copier mes apports</button><button class="small" type="button" data-export-journal>Extraire mes apports</button></div><section class="metrics">${targetCard('Énergie', 'kcal', totals.kcal, ' kcal')}${targetCard('Protéines', 'protein', totals.protein, ' g')}${targetCard('Glucides', 'carbs', totals.carbs, ' g')}${targetCard('Lipides', 'fat', totals.fat, ' g')}</section>
-  <button class="goals-button" data-action="open-targets"><span>Objectifs quotidiens</span><b>Définir ou modifier →</b></button>${waterTracker()}
+  <button class="goals-button" data-action="open-targets"><span>Objectifs quotidiens</span><b>Définir ou modifier →</b></button>${supplementsTracker()}${waterTracker()}
   <section class="panel food-composer"><div class="section-title"><h2>Ajouter un aliment</h2><button class="link" type="button" data-toggle-food-composer aria-label="${journalComposerOpen ? 'Replier l’ajout d’aliment' : 'Afficher l’ajout d’aliment'}" title="${journalComposerOpen ? 'Replier' : 'Afficher'}">${journalComposerOpen ? '−' : '+'}</button></div>${journalComposerOpen ? `<form id="log-form" class="form-grid"><label>Repas<select name="meal">${mealOptions(state.defaultMeal)}</select></label><label>Aliment<input name="foodSearch" placeholder="Rechercher dans la liste…" autocomplete="off" /><select name="foodId">${foodOptions(state.defaultFoodId)}</select></label><label data-quantity-label>Quantité (g / unité)<input name="grams" type="number" min="1" value="${initialQuantity}" required /></label><label class="checkbox-field"><input name="fromStock" type="checkbox" /> Prélevé du stock</label><button>Ajouter</button></form>${foodPreview(initialFood?.id, initialQuantity)}` : ''}</section>
   <section class="panel"><h2>Repas enregistrés</h2>${logs.length ? `<div class="log-list">${logs.map((entry) => `<article data-log-row="${entry.id}" title="Double-cliquer pour modifier"><div><b>${entry.meal}</b><span>${foodAmountLabel(entry.foodId, entry.grams, entry.name)}</span></div><strong>${entry.kcal} kcal</strong><div class="log-actions"><button class="small" data-edit-log="${entry.id}">Modifier</button><button class="icon" data-remove-log="${entry.id}" aria-label="Supprimer">×</button></div></article>`).join('')}</div>` : '<p class="empty">Aucun repas enregistré pour aujourd’hui.</p>'}</section>`;
 }
@@ -561,19 +607,27 @@ function bind() {
   app.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => { const nextView = button.dataset.view; if (nextView === view) return; view = nextView; history.pushState({ repasStock: true, view }, '', `#${view}`); render(); }));
   app.querySelector('[data-export-data]')?.addEventListener('click', () => { const blob = new Blob([JSON.stringify(exportPayload(), null, 2)], { type: 'application/json;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `repas-stock-sauvegarde-${today()}.json`; link.click(); URL.revokeObjectURL(link.href); notify('Données exportées.'); });
   app.querySelector('[data-import-data]')?.addEventListener('click', () => app.querySelector('[data-import-file]')?.click());
-  app.querySelector('[data-import-file]')?.addEventListener('change', async (event) => { const file = event.target.files?.[0]; if (!file) return; try { const imported = validatePartialData(importObject(JSON.parse(await file.text())), { full: true }); if (!confirm('Remplacer les données de cet appareil par celles du fichier ?')) return; state = { ...imported, unitPreferences: imported.unitPreferences || {}, shoppingUnitPreferences: imported.shoppingUnitPreferences || {}, water: imported.water || {}, waterBottleSize: Number(imported.waterBottleSize) || 600, defaultMeal: imported.defaultMeal || 'Petit-déjeuner' }; save(); render(); notify('Données importées.'); } catch (error) { notify(error.message === 'format' ? 'Fichier de données invalide.' : `Import impossible : ${error.message}`); } finally { event.target.value = ''; } });
+  app.querySelector('[data-import-file]')?.addEventListener('change', async (event) => { const file = event.target.files?.[0]; if (!file) return; try { const imported = validatePartialData(importObject(JSON.parse(await file.text())), { full: true }); if (!confirm('Remplacer les données de cet appareil par celles du fichier ?')) return; state = { ...imported, unitPreferences: imported.unitPreferences || {}, shoppingUnitPreferences: imported.shoppingUnitPreferences || {}, water: imported.water || {}, waterBottleSize: Number(imported.waterBottleSize) || 600, defaultMeal: imported.defaultMeal || 'Petit-déjeuner', supplements: imported.supplements || emptyState().supplements }; save(); scheduleSupplementReminder(); render(); notify('Données importées.'); } catch (error) { notify(error.message === 'format' ? 'Fichier de données invalide.' : `Import impossible : ${error.message}`); } finally { event.target.value = ''; } });
   const jsonEditor = app.querySelector('[data-json-editor]');
   if (jsonEditor) {
     jsonEditor.value = JSON.stringify(exportPayload(), null, 2);
     app.querySelector('[data-load-json]')?.addEventListener('click', () => { jsonEditor.value = JSON.stringify(exportPayload(), null, 2); notify('JSON actuel chargé dans l’éditeur.'); });
     app.querySelector('[data-copy-json]')?.addEventListener('click', async () => { if (await copyText(jsonEditor.value)) notify('JSON copié.'); else notify('Copie impossible dans ce navigateur.'); });
     app.querySelector('[data-copy-json-schema]')?.addEventListener('click', async () => { if (await copyText(jsonNomenclature())) notify('Nomenclature JSON copiée.'); else notify('Copie impossible dans ce navigateur.'); });
-    app.querySelector('[data-apply-json]')?.addEventListener('click', () => { try { const imported = validatePartialData(importObject(JSON.parse(jsonEditor.value)), { full: true }); if (!confirm('Remplacer toutes les données de cet appareil par le JSON édité ?')) return; state = { ...imported, unitPreferences: imported.unitPreferences || {}, shoppingUnitPreferences: imported.shoppingUnitPreferences || {}, water: imported.water || {}, waterBottleSize: Number(imported.waterBottleSize) || 600, defaultMeal: imported.defaultMeal || 'Petit-déjeuner' }; save(); render(); notify('JSON importé intégralement.'); } catch (error) { notify(`JSON invalide : ${error.message}`); } });
+    app.querySelector('[data-apply-json]')?.addEventListener('click', () => { try { const imported = validatePartialData(importObject(JSON.parse(jsonEditor.value)), { full: true }); if (!confirm('Remplacer toutes les données de cet appareil par le JSON édité ?')) return; state = { ...imported, unitPreferences: imported.unitPreferences || {}, shoppingUnitPreferences: imported.shoppingUnitPreferences || {}, water: imported.water || {}, waterBottleSize: Number(imported.waterBottleSize) || 600, defaultMeal: imported.defaultMeal || 'Petit-déjeuner', supplements: imported.supplements || emptyState().supplements }; save(); scheduleSupplementReminder(); render(); notify('JSON importé intégralement.'); } catch (error) { notify(`JSON invalide : ${error.message}`); } });
     app.querySelector('[data-apply-partial-json]')?.addEventListener('click', () => { try { const imported = validatePartialData(importObject(JSON.parse(jsonEditor.value))); if (!confirm('Ajouter ou modifier uniquement les rubriques présentes dans ce JSON ?')) return; applyPartialData(imported); save(); render(); notify('Partie de JSON importée.'); } catch (error) { notify(`JSON invalide : ${error.message}`); } });
   }
   app.querySelector('.food-composer .section-title')?.addEventListener('click', () => { journalComposerOpen = !journalComposerOpen; render(); });
   app.querySelector('[data-copy-journal]')?.addEventListener('click', async () => { if (await copyText(journalExportText())) notify('Apports journaliers copiés.'); else notify('Copie impossible dans ce navigateur.'); });
   app.querySelector('[data-export-journal]')?.addEventListener('click', () => { const blob = new Blob([journalExportText()], { type: 'text/plain;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'apports-journaliers.txt'; link.click(); URL.revokeObjectURL(link.href); notify('Apports journaliers extraits.'); });
+  const openSupplementDialog = (id) => { const supplement = state.supplements.find((item) => item.id === id); app.insertAdjacentHTML('beforeend', supplementDialog(supplement)); const dialog = app.querySelector('#supplement-form')?.closest('dialog'); dialog?.querySelector('[data-close-supplement-dialog]')?.addEventListener('click', () => dialog.remove()); dialog?.querySelector('#supplement-form')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.target); const name = data.get('name').trim(); const dose = Number(data.get('dose')); if (!name || !Number.isFinite(dose) || dose <= 0) return; const existing = state.supplements.find((item) => item.id === event.target.dataset.supplementId); const next = { id: existing?.id || crypto.randomUUID(), name, dose, unit: data.get('unit'), frequency: 'quotidien', reminderTime: data.get('reminderTime') || '09:00', reminderEnabled: data.get('reminderEnabled') === 'on', takenOn: existing?.takenOn || [] }; if (existing) Object.assign(existing, next); else state.supplements.push(next); save(); scheduleSupplementReminder(); dialog.remove(); render(); notify(existing ? 'Complément modifié.' : 'Complément ajouté.'); }); };
+  app.querySelector('[data-add-supplement]')?.addEventListener('click', () => openSupplementDialog());
+  app.querySelectorAll('[data-edit-supplement]').forEach((button) => button.addEventListener('click', () => openSupplementDialog(button.dataset.editSupplement)));
+  app.querySelectorAll('[data-toggle-supplement]').forEach((input) => input.addEventListener('change', () => { const index = state.supplements.findIndex((item) => item.id === input.dataset.toggleSupplement); if (index < 0) return; state.supplements[index] = toggleSupplementTaken(state.supplements[index]); save(); scheduleSupplementReminder(); render(); }));
+  app.querySelectorAll('[data-supplement-reminder]').forEach((input) => input.addEventListener('change', () => { const supplement = state.supplements.find((item) => item.id === input.dataset.supplementReminder); if (!supplement) return; supplement.reminderEnabled = input.checked; save(); scheduleSupplementReminder(); render(); }));
+  app.querySelectorAll('[data-supplement-time]').forEach((input) => input.addEventListener('change', () => { const supplement = state.supplements.find((item) => item.id === input.dataset.supplementTime); if (!supplement) return; supplement.reminderTime = input.value || '09:00'; save(); scheduleSupplementReminder(); notify('Heure du rappel enregistrée.'); }));
+  app.querySelectorAll('[data-remove-supplement]').forEach((button) => button.addEventListener('click', () => { const supplement = state.supplements.find((item) => item.id === button.dataset.removeSupplement); if (!supplement || !confirm(`Supprimer ${supplement.name} ?`)) return; state.supplements = state.supplements.filter((item) => item.id !== supplement.id); save(); scheduleSupplementReminder(); render(); notify('Complément supprimé.'); }));
+  app.querySelector('[data-request-notifications]')?.addEventListener('click', async () => { const permission = await Notification.requestPermission(); notify(permission === 'granted' ? 'Notifications autorisées.' : 'Notifications non autorisées.'); });
   app.querySelector('[data-water-amount]')?.addEventListener('change', (event) => { state.water[today()] = Math.max(0, Number(event.target.value) || 0); save(); render(); });
   app.querySelector('[data-water-slider]')?.addEventListener('change', (event) => { state.water[today()] = Math.max(0, Number(event.target.value) || 0); save(); render(); });
   app.querySelector('[data-water-bottle-size]')?.addEventListener('change', (event) => { state.waterBottleSize = Math.max(50, Number(event.target.value) || 600); save(); render(); });
@@ -728,6 +782,7 @@ function bindTargets() { const dialog = app.querySelector('dialog'); dialog.quer
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js?v=20260922-04');
 if (!history.state?.repasStock) history.replaceState({ repasStock: true, view }, '', location.href);
 addEventListener('popstate', (event) => { view = event.state?.repasStock ? event.state.view : 'journal'; render(); });
+scheduleSupplementReminder();
 render();
 
 

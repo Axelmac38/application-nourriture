@@ -56,8 +56,20 @@ export const emptyState = () => ({
     { id: 'stock-mayonnaise', foodId: 'mayonnaise', quantity: 200, minimum: 100, packageQuantity: 500 },
     { id: 'stock-eggs', foodId: 'egg', quantity: 20, minimum: 10 }
   ],
-  shopping: []
+  shopping: [],
+  supplements: [
+    { id: 'creatine', name: 'Créatine', dose: 3, unit: 'g', frequency: 'quotidien', reminderTime: '09:00', reminderEnabled: false, takenOn: [] }
+  ]
 });
+
+export function supplementTakenToday(supplement, date = new Date().toISOString().slice(0, 10)) {
+  return Array.isArray(supplement?.takenOn) && supplement.takenOn.includes(date);
+}
+
+export function toggleSupplementTaken(supplement, date = new Date().toISOString().slice(0, 10)) {
+  const takenOn = Array.isArray(supplement?.takenOn) ? supplement.takenOn : [];
+  return { ...supplement, takenOn: takenOn.includes(date) ? takenOn.filter((item) => item !== date) : [...takenOn, date] };
+}
 
 export function nutrientsFor(food, grams) {
   const ratio = Number(grams) / 100;
